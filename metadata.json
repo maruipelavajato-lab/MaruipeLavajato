@@ -1,0 +1,7 @@
+{
+  "name": "Maruípe Lava Jato Estética Automotiva",
+  "description": "Site e aplicativo oficial do Maruípe Lava Jato Estética Automotiva em Vitória/ES. Catálogo completo de serviços, agendamentos, carrinho, WhatsApp e pagamentos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
