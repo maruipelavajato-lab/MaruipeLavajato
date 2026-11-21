@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Apple, Play, QrCode, CheckCircle2, Sparkles, ExternalLink, ArrowRight, Download } from 'lucide-react';
+import { Smartphone, Apple, Play, QrCode, CheckCircle2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { CompanyConfig } from '../types';
 
 interface DownloadAppSectionProps {
@@ -7,29 +7,26 @@ interface DownloadAppSectionProps {
   onOpenMobileAppMode: () => void;
 }
 
+const ANDROID_DIRECT_APK_URL =
+  'https://github.com/maruipelavajato-lab/MaruipeLavajato/releases/latest/download/Maruipe-Lava-Jato-Zion.apk';
+
 export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
   config,
   onOpenMobileAppMode,
 }) => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [activePlatform, setActivePlatform] = useState<'android' | 'ios' | null>(null);
+  const [iosModalOpen, setIosModalOpen] = useState(false);
 
-  const handleDownloadClick = (platform: 'android' | 'ios') => {
-    setActivePlatform(platform);
-    const link = platform === 'android' ? config.androidAppLink : config.iosAppLink;
-    
-    // Check if real link has been configured
-    if (
-      !link ||
-      link === 'COLOCAR_LINK_DA_PLAY_STORE_AQUI' ||
-      link === 'COLOCAR_LINK_DA_APP_STORE_AQUI' ||
-      link.trim() === ''
-    ) {
-      setModalOpen(true);
-    } else {
-      window.open(link, '_blank', 'noopener,noreferrer');
-    }
-  };
+  const hasAndroidStoreLink =
+    Boolean(config.androidAppLink) &&
+    config.androidAppLink !== 'COLOCAR_LINK_DA_PLAY_STORE_AQUI' &&
+    config.androidAppLink.trim() !== '';
+
+  const hasIosStoreLink =
+    Boolean(config.iosAppLink) &&
+    config.iosAppLink !== 'COLOCAR_LINK_DA_APP_STORE_AQUI' &&
+    config.iosAppLink.trim() !== '';
+
+  const androidDownloadHref = hasAndroidStoreLink ? config.androidAppLink : ANDROID_DIRECT_APK_URL;
 
   return (
     <section id="baixar-app" className="py-24 bg-neutral-950 relative overflow-hidden border-t border-neutral-800/80">
@@ -47,31 +44,31 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
               
               <div className="inline-flex items-center gap-2 text-xs font-bold tracking-widest text-amber-500 uppercase">
                 <Smartphone className="w-4 h-4 text-amber-400" />
-                <span>Aplicativo Oficial Exclusivo</span>
+                <span>Aplicativo Nativo · Android &amp; iOS</span>
               </div>
 
-              {/* Title exactly as requested */}
+              {/* Title */}
               <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
                 BAIXE NOSSO APLICATIVO
               </h2>
 
-              {/* Texts exactly as requested */}
+              {/* Texts */}
               <div className="space-y-3">
                 <p className="text-xl sm:text-2xl font-bold text-amber-400">
-                  Tenha o Maruípe Lava Jato na palma da sua mão.
+                  Aplicativo completo instalado direto no celular — sem precisar criar atalho.
                 </p>
                 <p className="text-base sm:text-lg text-neutral-300 leading-relaxed max-w-xl">
-                  Agende seu serviço, confira nosso catálogo e acompanhe seus pedidos pelo aplicativo.
+                  Agende lavagens (trazendo o carro ou com busca no local), fale com a IA Zion, confira o catálogo e acompanhe seus pedidos pelo app oficial.
                 </p>
               </div>
 
               {/* Feature Points */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 {[
-                  'Agendamento rápido em menos de 1 minuto',
-                  'Histórico completo de serviços do seu carro',
-                  'Notificações de horário e status pelo WhatsApp',
-                  'Descontos e promoções exclusivas no app',
+                  'Instalador oficial Android e publicação na Google Play Store',
+                  'Aplicativo oficial para iPhone (iOS) pronto para TestFlight e App Store',
+                  'Agendamento na loja ou Leva e Traz + IA Zion integrada',
+                  'Sem atalhos de navegador: ícone e aplicativo instalados no aparelho',
                 ].map((feat, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs sm:text-sm text-neutral-300">
                     <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
@@ -80,64 +77,93 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
                 ))}
               </div>
 
-              {/* 2 Official Download Buttons as requested */}
+              {/* 2 Official Native Download Buttons */}
               <div className="pt-4 flex flex-wrap gap-4">
-                {/* ANDROID BUTTON */}
-                <button
-                  onClick={() => handleDownloadClick('android')}
-                  className="flex-1 min-w-[200px] py-3.5 px-5 rounded-2xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-700 hover:border-amber-500/70 transition-all flex items-center gap-3.5 shadow-lg group text-left"
+                {/* ANDROID REAL APK / PLAY STORE BUTTON */}
+                <a
+                  href={androidDownloadHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 min-w-[220px] py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 transition-all flex items-center gap-3.5 shadow-lg text-left"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-neutral-950 flex items-center justify-center shrink-0 border border-neutral-800 text-white group-hover:text-amber-400">
+                  <div className="w-10 h-10 rounded-xl bg-neutral-950/90 flex items-center justify-center shrink-0 text-emerald-400">
                     <Play className="w-5 h-5 fill-current" />
                   </div>
                   <div>
-                    <span className="block text-[10px] uppercase font-semibold text-neutral-400">
-                      Disponível na
+                    <span className="block text-[10px] uppercase font-bold text-neutral-950/80">
+                      {hasAndroidStoreLink ? 'Disponível na Google Play' : 'Instalador Direto Android (.APK)'}
                     </span>
-                    <span className="block text-sm sm:text-base font-bold text-white whitespace-nowrap">
-                      📱 BAIXAR PARA ANDROID
+                    <span className="block text-sm sm:text-base font-black text-neutral-950 whitespace-nowrap">
+                      BAIXAR PARA ANDROID
                     </span>
                   </div>
-                </button>
+                </a>
 
-                {/* IPHONE BUTTON */}
-                <button
-                  onClick={() => handleDownloadClick('ios')}
-                  className="flex-1 min-w-[200px] py-3.5 px-5 rounded-2xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-700 hover:border-amber-500/70 transition-all flex items-center gap-3.5 shadow-lg group text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-neutral-950 flex items-center justify-center shrink-0 border border-neutral-800 text-white group-hover:text-amber-400">
-                    <Apple className="w-5 h-5 fill-current" />
-                  </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-semibold text-neutral-400">
-                      Disponível na
-                    </span>
-                    <span className="block text-sm sm:text-base font-bold text-white whitespace-nowrap">
-                      🍎 BAIXAR PARA IPHONE
-                    </span>
-                  </div>
-                </button>
+                {/* IPHONE (iOS) APP STORE / TESTFLIGHT BUTTON */}
+                {hasIosStoreLink ? (
+                  <a
+                    href={config.iosAppLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 min-w-[220px] py-3.5 px-5 rounded-2xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-700 hover:border-amber-500/70 transition-all flex items-center gap-3.5 shadow-lg group text-left"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-neutral-950 flex items-center justify-center shrink-0 border border-neutral-800 text-white group-hover:text-amber-400">
+                      <Apple className="w-5 h-5 fill-current" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-neutral-400">
+                        App Store / TestFlight
+                      </span>
+                      <span className="block text-sm sm:text-base font-bold text-white whitespace-nowrap">
+                        BAIXAR PARA IPHONE (iOS)
+                      </span>
+                    </div>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIosModalOpen(true)}
+                    className="flex-1 min-w-[220px] py-3.5 px-5 rounded-2xl bg-neutral-900 hover:bg-neutral-850 border border-neutral-700 hover:border-amber-500/70 transition-all flex items-center gap-3.5 shadow-lg group text-left"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-neutral-950 flex items-center justify-center shrink-0 border border-neutral-800 text-white group-hover:text-amber-400">
+                      <Apple className="w-5 h-5 fill-current" />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] uppercase font-semibold text-neutral-400">
+                        iPhone / iPad (iOS Nativo)
+                      </span>
+                      <span className="block text-sm sm:text-base font-bold text-white whitespace-nowrap">
+                        BAIXAR PARA IPHONE (iOS)
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
 
-              {/* Live Web App Simulation Button */}
-              <div className="pt-2 flex flex-col gap-2">
+              {/* Transparent App Security Declaration at Install Time */}
+              <div className="p-3.5 rounded-2xl bg-neutral-950/90 border border-emerald-500/30 text-xs space-y-1.5">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>Aplicativo Oficial Verificado &amp; Seguro na Instalação</span>
+                </div>
+                <p className="text-[11px] text-neutral-300 leading-relaxed">
+                  Assinado digitalmente por <strong>Maruípe Lava Jato Estética Automotiva</strong> (<code className="text-amber-400">com.maruipelavajato.app</code>), conexão exclusiva em <strong>HTTPS</strong> e apenas permissão de <strong>Internet</strong> (sem acesso a câmera, microfone, contatos ou GPS em segundo plano).
+                </p>
+                <p className="text-[11px] text-neutral-400 leading-relaxed">
+                  No Android, ao instalar o <strong>.APK direto</strong> fora da Play Store, o Google Play Protect realiza a verificação padrão de segurança — confirme normalmente sem desativar a proteção. Para publicação pública sem aviso de fonte externa, utilize o pacote <strong>.AAB</strong> na Google Play Console e o <strong>.IPA / TestFlight</strong> na Apple App Store.
+                </p>
+              </div>
+
+              {/* App Browser Preview */}
+              <div className="pt-1 flex flex-col gap-2">
                 <button
                   onClick={onOpenMobileAppMode}
                   className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors py-1"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Quer testar agora mesmo sem baixar da loja? Abrir o Aplicativo Web no Navegador</span>
+                  <span>Pré-visualizar interface do aplicativo agora no navegador</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
-
-                <a
-                  href="/maruipe-lavajato-projeto.zip"
-                  download="maruipe-lavajato-projeto.zip"
-                  className="inline-flex items-center gap-2 text-xs text-neutral-400 hover:text-white transition-colors pt-1"
-                >
-                  <Download className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Baixar pacote completo de arquivos do site (.ZIP)</span>
-                </a>
               </div>
 
             </div>
@@ -148,18 +174,16 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
                 
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
                   <QrCode className="w-3.5 h-3.5" />
-                  <span>Download Imediato</span>
+                  <span>App Oficial Android &amp; iOS</span>
                 </div>
 
                 {/* QR Code Container with sleek automotive frame */}
                 <div className="relative mx-auto w-52 h-52 bg-white p-4 rounded-2xl flex flex-col items-center justify-center shadow-inner">
-                  {/* Visual QR Code Representation prepared for official release */}
                   <svg
                     viewBox="0 0 200 200"
                     className="w-full h-full text-neutral-950"
                     fill="currentColor"
                   >
-                    {/* Corner positioning marks */}
                     <rect x="10" y="10" width="50" height="50" rx="6" />
                     <rect x="20" y="20" width="30" height="30" fill="white" />
                     <rect x="27" y="27" width="16" height="16" />
@@ -172,7 +196,6 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
                     <rect x="20" y="150" width="30" height="30" fill="white" />
                     <rect x="27" y="157" width="16" height="16" />
 
-                    {/* QR Code Matrix Pattern */}
                     <rect x="70" y="20" width="12" height="12" />
                     <rect x="90" y="20" width="12" height="12" />
                     <rect x="110" y="30" width="12" height="12" />
@@ -203,7 +226,6 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
                     <rect x="140" y="170" width="25" height="15" />
                   </svg>
 
-                  {/* Little badge in center */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <span className="bg-amber-500 text-neutral-950 font-black text-[9px] px-2 py-0.5 rounded shadow">
                       MARUÍPE
@@ -211,13 +233,12 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
                   </div>
                 </div>
 
-                {/* Text exactly as requested */}
                 <div className="space-y-1">
                   <p className="text-xs sm:text-sm font-bold text-white">
-                    Aponte a câmera do celular para baixar nosso aplicativo.
+                    App oficial instalado no Android (.APK) e iPhone (App Store / TestFlight).
                   </p>
                   <p className="text-[11px] text-neutral-400">
-                    Compatível com Android e iOS (iPhone)
+                    Versão 1.0.0 · Pacote com.maruipelavajato.app
                   </p>
                 </div>
 
@@ -229,43 +250,46 @@ export const DownloadAppSection: React.FC<DownloadAppSectionProps> = ({
         </div>
       </div>
 
-      {/* Modal 'Aplicativo em breve' */}
-      {modalOpen && (
+      {/* Modal iOS Native App (App Store / TestFlight) */}
+      {iosModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="relative w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
             <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mx-auto">
-              <Smartphone className="w-7 h-7" />
+              <Apple className="w-7 h-7" />
             </div>
 
             <h3 className="font-display text-xl font-black text-white">
-              Aplicativo em Breve na {activePlatform === 'android' ? 'Google Play Store' : 'Apple App Store'}!
+              Aplicativo Oficial para iPhone (iOS)
             </h3>
 
             <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
-              O aplicativo oficial do <strong>Maruípe Lava Jato</strong> está em fase final de homologação nas lojas de aplicativos.
+              O aplicativo do <strong>Maruípe Lava Jato</strong> para iPhone/iPad (com <strong>Agente IA Zion</strong> e <strong>Leva e Traz</strong>) é distribuído exclusivamente pelos canais oficiais da Apple.
             </p>
 
-            <div className="p-3.5 bg-neutral-950 border border-neutral-850 rounded-xl text-xs text-neutral-400 text-left space-y-1.5">
-              <p className="text-white font-semibold">💡 Dica para o Administrador:</p>
+            <div className="p-3.5 bg-neutral-950 border border-neutral-850 rounded-xl text-xs text-neutral-300 text-left space-y-2">
+              <p className="text-amber-400 font-bold">Instalação segura no iPhone:</p>
               <p>
-                Quando seu aplicativo for publicado na Google Play ou App Store, basta inserir os links reais no <strong>Painel Administrativo</strong> ou diretamente nas variáveis <code className="text-amber-400">ANDROID_APP_LINK</code> e <code className="text-amber-400">IOS_APP_LINK</code>.
+                Por proteção da Apple, aplicativos de iPhone são instalados apenas via <strong>App Store</strong> ou convite oficial do <strong>TestFlight</strong>.
+              </p>
+              <p>
+                Enquanto o link da App Store é liberado pelo proprietário, você pode abrir o modo aplicativo completo aqui mesmo no celular ou solicitar atendimento pelo nosso WhatsApp.
               </p>
             </div>
 
             <div className="pt-2 flex flex-col gap-2">
+
               <button
                 onClick={() => {
-                  setModalOpen(false);
+                  setIosModalOpen(false);
                   onOpenMobileAppMode();
                 }}
-                className="w-full py-3 px-4 rounded-xl bg-amber-500 text-neutral-950 font-bold text-xs sm:text-sm hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-xl bg-neutral-800 border border-neutral-700 text-white font-semibold text-xs sm:text-sm hover:bg-neutral-750 transition-all"
               >
-                <span>Usar Aplicativo Web Agora</span>
-                <ArrowRight className="w-4 h-4" />
+                Visualizar App Agora no Navegador
               </button>
 
               <button
-                onClick={() => setModalOpen(false)}
+                onClick={() => setIosModalOpen(false)}
                 className="w-full py-2 text-xs text-neutral-400 hover:text-white"
               >
                 Fechar

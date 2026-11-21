@@ -105,40 +105,24 @@ export const LavagensSection: React.FC<LavagensSectionProps> = ({
                   )}
                 </div>
 
-                {/* Card Action Buttons according to prompt:
-                    - Lavagem Simples: ADICIONAR AO CARRINHO
-                    - Lavagem Especial: ADICIONAR AO CARRINHO
-                    - Lavagem Premium Detalhada: AGENDAR
-                */}
-                <div className="pt-4 flex flex-col gap-2">
-                  {isPremium ? (
-                    <button
-                      onClick={() => onOpenSchedule(service)}
-                      className="w-full py-3 px-4 text-xs sm:text-sm font-bold rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                    >
-                      <Calendar className="w-4 h-4" />
-                      <span>AGENDAR</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => onAddToCart(service)}
-                      className={`w-full py-3 px-4 text-xs sm:text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${
-                        isEspecial
-                          ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 hover:brightness-110 shadow-md shadow-amber-500/20'
-                          : 'bg-neutral-800 hover:bg-neutral-750 text-white hover:border-neutral-600'
-                      }`}
-                    >
-                      <ShoppingBag className="w-4 h-4" />
-                      <span>ADICIONAR AO CARRINHO</span>
-                    </button>
-                  )}
-
-                  {/* Secondary affordance to allow either add or schedule */}
+                {/* Card Action Buttons */}
+                <div className="pt-4 grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => (isPremium ? onAddToCart(service) : onOpenSchedule(service))}
-                    className="w-full py-2 text-xs text-neutral-400 hover:text-white transition-colors text-center"
+                    onClick={() => onAddToCart(service)}
+                    className="w-full py-3 px-3 text-xs sm:text-sm font-semibold rounded-xl bg-neutral-800 hover:bg-neutral-750 text-white border border-neutral-700 hover:border-neutral-600 transition-all flex items-center justify-center gap-1.5"
                   >
-                    {isPremium ? '+ Adicionar também ao carrinho' : 'Ou agendar horário direto'}
+                    <ShoppingBag className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Carrinho</span>
+                  </button>
+
+                  <button
+                    onClick={() => onOpenSchedule(service)}
+                    className={`w-full py-3 px-3 text-xs sm:text-sm font-bold rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 ${
+                      isEspecial || isPremium ? 'shadow-md shadow-amber-500/20' : ''
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4 shrink-0" />
+                    <span>AGENDAR</span>
                   </button>
                 </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Calendar, Smartphone, Menu, X, ShieldCheck, Bell } from 'lucide-react';
+import { ShoppingBag, Calendar, Smartphone, Menu, X, Bot } from 'lucide-react';
 import { CompanyConfig } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   config: CompanyConfig;
@@ -9,21 +10,20 @@ interface HeaderProps {
   onOpenSchedule: () => void;
   onOpenAppDownload: () => void;
   onOpenAdmin: () => void;
+  onOpenZion: () => void;
   isAppMode: boolean;
   onToggleAppMode: () => void;
   unreadNotificationsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  config,
   cartCount,
   onOpenCart,
   onOpenSchedule,
   onOpenAppDownload,
-  onOpenAdmin,
+  onOpenZion,
   isAppMode,
   onToggleAppMode,
-  unreadNotificationsCount = 0,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -58,6 +58,11 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Zone 3: Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Native PWA Install Trigger when available */}
+            <div className="hidden md:inline-flex">
+              <PWAInstallButton compact label="Instalar App" />
+            </div>
+
             {/* View Switch: Site vs Mobile App View */}
             <button
               onClick={onToggleAppMode}
@@ -76,6 +81,16 @@ export const Header: React.FC<HeaderProps> = ({
               <Smartphone className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">📱</span>
               <span>BAIXE O APP</span>
+            </button>
+
+            {/* Agente IA Zion Button */}
+            <button
+              onClick={onOpenZion}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-neutral-900 border border-amber-500/50 text-amber-400 hover:bg-amber-500/15 hover:border-amber-400 transition-all whitespace-nowrap"
+              title="Tirar dúvidas com a Inteligência Artificial Zion"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Agente IA Zion</span>
             </button>
 
             {/* Schedule Button */}
@@ -98,19 +113,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="absolute -top-1 -right-1 bg-amber-500 text-neutral-950 text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
                   {cartCount}
                 </span>
-              )}
-            </button>
-
-            {/* Admin notifications icon */}
-            <button
-              onClick={onOpenAdmin}
-              className="relative p-2.5 rounded-lg border border-neutral-850 bg-neutral-900/60 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700 transition-colors"
-              title="Painel Administrativo"
-              aria-label="Painel Administrativo"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadNotificationsCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-400" />
               )}
             </button>
 
@@ -190,6 +192,16 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           <div className="pt-2 border-t border-neutral-800 flex flex-col gap-2">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpenZion();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-bold rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-400"
+            >
+              <Bot className="w-4 h-4" />
+              <span>Conversar com Agente IA Zion</span>
+            </button>
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

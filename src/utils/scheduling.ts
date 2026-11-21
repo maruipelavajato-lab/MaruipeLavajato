@@ -1,4 +1,66 @@
-import { Appointment, OwnerNotification } from '../types';
+import { Appointment, AppointmentStatus, OwnerNotification, ServiceDeliveryMode } from '../types';
+
+export type NormalizedOrderStatus = 'pendente' | 'em_execucao' | 'concluido' | 'cancelado';
+
+export interface OrderStatusMeta {
+  normalized: NormalizedOrderStatus;
+  label: string;
+  description: string;
+  step: number; // 1: Pendente, 2: Em Execução, 3: Concluído, 0: Cancelado
+  badgeClass: string;
+}
+
+export function normalizeAppointmentStatus(status?: AppointmentStatus): NormalizedOrderStatus {
+  if (status === 'em_execucao' || status === 'em_andamento') return 'em_execucao';
+  if (status === 'concluido') return 'concluido';
+  if (status === 'cancelado') return 'cancelado';
+  return 'pendente';
+}
+
+export function getAppointmentStatusMeta(status?: AppointmentStatus): OrderStatusMeta {
+  const normalized = normalizeAppointmentStatus(status);
+  switch (normalized) {
+    case 'em_execucao':
+      return {
+        normalized,
+        label: 'Em Execução',
+        description: 'Nossa equipe está cuidando do seu veículo neste momento.',
+        step: 2,
+        badgeClass: 'bg-sky-500/15 text-sky-400 border border-sky-500/30',
+      };
+    case 'concluido':
+      return {
+        normalized,
+        label: 'Concluído',
+        description: 'Serviço finalizado! Seu carro está pronto para retirada ou entrega.',
+        step: 3,
+        badgeClass: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+      };
+    case 'cancelado':
+      return {
+        normalized,
+        label: 'Cancelado',
+        description: 'Agendamento cancelado e horário liberado na agenda.',
+        step: 0,
+        badgeClass: 'bg-red-500/15 text-red-400 border border-red-500/30',
+      };
+    case 'pendente':
+    default:
+      return {
+        normalized: 'pendente',
+        label: 'Pendente',
+        description: 'Pedido recebido e aguardando o horário de início do atendimento.',
+        step: 1,
+        badgeClass: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+      };
+  }
+}
+
+export function formatDeliveryModeLabel(mode?: ServiceDeliveryMode): string {
+  return mode === 'leva_traz'
+    ? 'Buscar veículo no local (Leva e Traz)'
+    : 'Cliente traz o carro até o lava jato';
+}
 
 export interface TimeSlot {
   time: string; // "08:00"
@@ -16,6 +78,33 @@ export interface DayAvailability {
 
 const APPOINTMENTS_STORAGE_KEY = 'maruipe_appointments';
 const NOTIFICATIONS_STORAGE_KEY = 'maruipe_owner_notifications';
+const MY_APPOINTMENT_IDS_KEY = 'maruipe_my_appointment_ids';
+
+export function getMyAppointmentIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(MY_APPOINTMENT_IDS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function rememberMyAppointmentId(id: string): void {
+  if (typeof window === 'undefined' || !id) return;
+  try {
+    const current = getMyAppointmentIds();
+    if (!current.includes(id)) {
+      localStorage.setItem(MY_APPOINTMENT_IDS_KEY, JSON.stringify([id, ...current].slice(0, 30)));
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function timeToMinutes(timeStr: string): number {
   const [h, m] = timeStr.split(':').map(Number);
@@ -57,7 +146,7 @@ export function getStoredAppointments(): Appointment[] {
       durationMinutes: 60,
       totalPrice: 50,
       hasQuoteItems: false,
-      status: 'confirmado',
+      status: 'pendente',
       createdAt: new Date().toISOString(),
       notes: 'Carro muito empoeirado da estrada',
     },
@@ -72,7 +161,7 @@ export function getStoredAppointments(): Appointment[] {
       time: '14:00',
       durationMinutes: 60,
       hasQuoteItems: true,
-      status: 'confirmado',
+      status: 'em_execucao',
       createdAt: new Date().toISOString(),
       notes: 'Farol dianteiro esquerdo fosco',
     },
@@ -297,22 +386,31 @@ export function bookAppointment(
     };
   }
 
+  const deliveryMode: ServiceDeliveryMode = data.deliveryMode ?? 'cliente_traz';
+
   const newAppointment: Appointment = {
     ...data,
+    deliveryMode,
+    pickupAddress: deliveryMode === 'leva_traz' ? data.pickupAddress : undefined,
     id: `apt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    status: 'confirmado',
+    status: 'pendente',
     createdAt: new Date().toISOString(),
   };
 
   const updated = [newAppointment, ...currentAppointments];
   saveAppointments(updated);
+  rememberMyAppointmentId(newAppointment.id);
 
   // Send owner notification
   const ownerNotifications = getOwnerNotifications();
+  const deliverySummary =
+    data.deliveryMode === 'leva_traz'
+      ? `Buscar no local: ${data.pickupAddress || 'Endereço a confirmar'}`
+      : 'Cliente traz na loja';
   const newNotification: OwnerNotification = {
     id: `notif-${Date.now()}`,
     title: `Novo Agendamento: ${data.clientName}`,
-    message: `${data.serviceNames.join(' + ')} em ${data.date} às ${data.time} (${data.vehicleModel || 'Veículo não informado'}). Telefone: ${data.clientPhone}`,
+    message: `${data.serviceNames.join(' + ')} em ${data.date} às ${data.time} (${data.vehicleModel || 'Veículo não informado'} · ${deliverySummary}). Telefone: ${data.clientPhone}`,
     appointmentId: newAppointment.id,
     createdAt: new Date().toISOString(),
     read: false,
@@ -335,6 +433,11 @@ export function buildWhatsAppBookingMessage(
   const dateFormatted = appointment.date.split('-').reverse().join('/');
   const servicesList = appointment.serviceNames.join(' + ');
   const priceText = appointment.totalPrice ? `R$ ${appointment.totalPrice.toFixed(2).replace('.', ',')}` : 'A consultar';
+  const deliveryLabel = formatDeliveryModeLabel(appointment.deliveryMode);
+  const pickupLine =
+    appointment.deliveryMode === 'leva_traz' && appointment.pickupAddress
+      ? `🏠 *Endereço para Busca:* ${appointment.pickupAddress}\n`
+      : '';
 
   return `*AGENDAMENTO - ${companyName.toUpperCase()}*
 
@@ -343,12 +446,13 @@ Olá! Gostaria de confirmar o meu agendamento:
 👤 *Cliente:* ${appointment.clientName}
 📱 *WhatsApp:* ${appointment.clientPhone}
 🚗 *Veículo:* ${appointment.vehicleModel || 'Não especificado'}
-🧼 *Serviço(s):* ${servicesList}
+🚙 *Modalidade:* ${deliveryLabel}
+${pickupLine}🧼 *Serviço(s):* ${servicesList}
 📅 *Data:* ${dateFormatted}
 ⏰ *Horário:* ${appointment.time} (Duração est.: ~${appointment.durationMinutes} min)
 💰 *Valor:* ${priceText}
 ${appointment.notes ? `💬 *Observações:* ${appointment.notes}\n` : ''}
-📍 *Local:* Rua Daniel Abreu Machado, 1406 – Vitória/ES
+📍 *Local:* Rua Daniel Abreu Machado, 406 – Vitória/ES
 
 _Por favor, confirme a disponibilidade da vaga!_`;
 }

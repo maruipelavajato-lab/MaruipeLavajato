@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Smartphone, ShoppingBag, Calendar } from 'lucide-react';
+import { MessageCircle, Smartphone, ShoppingBag, Calendar, Bot, Sparkles } from 'lucide-react';
 import { CompanyConfig } from '../types';
 
 interface FloatingActionsProps {
@@ -8,6 +8,7 @@ interface FloatingActionsProps {
   onOpenCart: () => void;
   onOpenSchedule: () => void;
   onOpenAppDownload: () => void;
+  onOpenZion: () => void;
 }
 
 export const FloatingWhatsApp: React.FC<FloatingActionsProps> = ({
@@ -16,6 +17,7 @@ export const FloatingWhatsApp: React.FC<FloatingActionsProps> = ({
   onOpenCart,
   onOpenSchedule,
   onOpenAppDownload,
+  onOpenZion,
 }) => {
   // Official WhatsApp link with required pre-filled message
   const whatsappUrl = `https://wa.me/5527992869471?text=${encodeURIComponent(
@@ -24,9 +26,28 @@ export const FloatingWhatsApp: React.FC<FloatingActionsProps> = ({
 
   return (
     <>
-      {/* Primary Floating WhatsApp Button (bottom right) */}
-      <div className="fixed bottom-6 right-5 z-40 flex flex-col items-end gap-3">
+      {/* Floating Actions Stack (bottom right) */}
+      <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-5 z-40 flex flex-col items-end gap-2.5">
         
+        {/* Agente IA Zion Button */}
+        <button
+          type="button"
+          onClick={onOpenZion}
+          className="group relative flex items-center gap-2.5 px-4 py-3 bg-neutral-900 hover:bg-neutral-850 text-white border border-amber-500/60 hover:border-amber-400 rounded-full shadow-2xl shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+          aria-label="Abrir Agente IA Zion"
+        >
+          <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-neutral-950">
+            <Bot className="w-3.5 h-3.5" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-300 rounded-full animate-ping" />
+          </div>
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="text-xs font-black tracking-tight text-amber-400">
+              Agente IA Zion
+            </span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          </div>
+        </button>
+
         {/* Floating WhatsApp with pulse */}
         <a
           href={whatsappUrl}

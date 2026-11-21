@@ -1,0 +1,123 @@
+name: Build iOS App (IPA / TestFlight / Simulator)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios:
+    name: Compilar App Nativo iOS (iPhone / iPad)
+    runs-on: macos-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências Web
+        run: npm install --legacy-peer-deps
+
+      - name: Compilar Web App e sincronizar Capacitor iOS
+        run: |
+          npm run build
+          rm -f dist/*.zip dist/*.apk dist/*.aab dist/*.ipa
+          npx cap sync ios
+
+      - name: Instalar CocoaPods iOS
+        working-directory: ios/App
+        run: pod install
+
+      - name: Compilar iOS IPA Assinado (quando Secrets Apple estiverem configurados) ou Versão de Teste
+        env:
+          APPLE_CERT_B64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERT_PASS: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROFILE_B64: ${{ secrets.APPLE_PROVISION_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          mkdir -p ios-release-outputs
+          if [ -n "$APPLE_CERT_B64" ] && [ -n "$APPLE_CERT_PASS" ] && [ -n "$APPLE_PROFILE_B64" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "Configurando certificado Apple Distribution para gerar .IPA assinado..."
+            KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+            KEYCHAIN_PASS=$(openssl rand -hex 16)
+            CERT_PATH=$RUNNER_TEMP/distribution.p12
+            PROFILE_PATH=$RUNNER_TEMP/profile.mobileprovision
+
+            echo "$APPLE_CERT_B64" | base64 --decode > "$CERT_PATH"
+            echo "$APPLE_PROFILE_B64" | base64 --decode > "$PROFILE_PATH"
+
+            security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+            security import "$CERT_PATH" -P "$APPLE_CERT_PASS" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+            security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+            UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
+            cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$UUID".mobileprovision
+
+            xcodebuild archive \
+              -workspace ios/App/App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -archivePath $RUNNER_TEMP/Maruipe.xcarchive \
+              DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+
+            cat <<EOF > $RUNNER_TEMP/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+            xcodebuild -exportArchive \
+              -archivePath $RUNNER_TEMP/Maruipe.xcarchive \
+              -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+              -exportPath ios-release-outputs
+
+            mv ios-release-outputs/*.ipa ios-release-outputs/Maruipe-Lava-Jato-iOS.ipa
+            echo "IOS_SIGNED_IPA=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secrets da Apple Developer Account não configurados. Gerando build de verificação iOS Simulator (.app) e xcarchive sem assinatura."
+            xcodebuild build \
+              -workspace ios/App/App.xcworkspace \
+              -scheme App \
+              -configuration Release \
+              -sdk iphonesimulator \
+              -derivedDataPath $RUNNER_TEMP/DerivedData \
+              CODE_SIGNING_ALLOWED=NO
+
+            cd $RUNNER_TEMP/DerivedData/Build/Products/Release-iphonesimulator
+            zip -r "$GITHUB_WORKSPACE/ios-release-outputs/Maruipe-Lava-Jato-iOS-Simulator.zip" App.app
+            echo "IOS_SIGNED_IPA=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Enviar Artefato iOS
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maruipe-Lava-Jato-iOS
+          path: ios-release-outputs/
+
+      - name: Anexar build iOS na Release do GitHub
+        if: env.IOS_SIGNED_IPA == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          files: ios-release-outputs/Maruipe-Lava-Jato-iOS.ipa

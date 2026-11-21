@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Maruípe Lava Jato Estética Automotiva | Vitória ES</title>
-    <meta name="description" content="Lavagem e estética automotiva em Vitória/ES. Polimento, lavagem de motor, higienização e proteção automotiva na Rua Daniel Abreu Machado, 1406." />
+    <meta name="description" content="Lavagem e estética automotiva em Vitória/ES. Polimento, lavagem de motor, higienização e proteção automotiva na Rua Daniel Abreu Machado, 406." />
     <meta name="keywords" content="lava jato Vitória, lava jato Maruípe, lavajato Maruípe, estética automotiva Vitória, estética automotiva Maruípe, lavagem de carro Vitória, polimento automotivo Vitória, polimento de farol Vitória, lavagem de motor Vitória, higienização automotiva Vitória" />
     <meta name="author" content="Maruípe Lava Jato Estética Automotiva" />
     
@@ -20,10 +20,14 @@
     <meta name="twitter:title" content="Maruípe Lava Jato Estética Automotiva | Vitória ES" />
     <meta name="twitter:description" content="Lavagem e estética automotiva profissional em Vitória/ES. Agendamento inteligente, catálogo e aplicativo mobile." />
 
-    <!-- Mobile & Theme Meta -->
+    <!-- Mobile & PWA Meta -->
     <meta name="theme-color" content="#0a0a0a" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Maruípe App" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
 
     <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,7 +44,7 @@
       "telephone": "+5527992869471",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Rua Daniel Abreu Machado, 1406",
+        "streetAddress": "Rua Daniel Abreu Machado, 406",
         "addressLocality": "Vitória",
         "addressRegion": "ES",
         "addressCountry": "BR"
@@ -53,15 +57,15 @@
       "openingHoursSpecification": [
         {
           "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-          "opens": "08:00",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "07:00",
           "closes": "18:00"
         },
         {
           "@type": "OpeningHoursSpecification",
-          "dayOfWeek": ["Saturday"],
+          "dayOfWeek": ["Sunday"],
           "opens": "08:00",
-          "closes": "15:00"
+          "closes": "14:00"
         }
       ],
       "priceRange": "$$"
@@ -70,7 +74,7 @@
   </head>
   <body class="bg-neutral-950 text-neutral-100 antialiased selection:bg-amber-500 selection:text-neutral-950" style="background-color: #0a0a0a; min-height: 100vh;">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
 

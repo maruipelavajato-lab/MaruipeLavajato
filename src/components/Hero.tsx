@@ -105,8 +105,8 @@ export const Hero: React.FC<HeroProps> = ({
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-bold text-white">Localização Fácil</p>
-                <p className="text-xs text-neutral-400">Rua Daniel Abreu Machado, 1406 – Vitória</p>
+                <p className="text-sm font-bold text-white">Na Loja ou Leva e Traz</p>
+                <p className="text-xs text-neutral-400">Traga na Rua Daniel Abreu Machado, 406 ou buscamos no local</p>
               </div>
             </div>
           </div>

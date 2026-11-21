@@ -20,12 +20,24 @@ export interface CartItem {
   vehicleModel?: string;
 }
 
+export type ServiceDeliveryMode = 'cliente_traz' | 'leva_traz';
+
+export type AppointmentStatus =
+  | 'pendente'
+  | 'em_execucao'
+  | 'concluido'
+  | 'cancelado'
+  | 'confirmado'
+  | 'em_andamento';
+
 export interface Appointment {
   id: string;
   clientName: string;
   clientPhone: string;
   vehicleModel?: string;
   vehiclePlate?: string;
+  deliveryMode?: ServiceDeliveryMode;
+  pickupAddress?: string;
   serviceIds: string[];
   serviceNames: string[];
   date: string; // YYYY-MM-DD
@@ -34,7 +46,7 @@ export interface Appointment {
   totalPrice?: number;
   hasQuoteItems: boolean;
   notes?: string;
-  status: 'confirmado' | 'em_andamento' | 'concluido' | 'cancelado';
+  status: AppointmentStatus;
   createdAt: string;
 }
 
@@ -61,4 +73,23 @@ export interface CompanyConfig {
   businessHoursSaturday: string;
   businessHoursSunday?: string;
   slotIntervalMinutes: number;
+}
+
+export interface Testimonial {
+  id: string;
+  clientName: string;
+  vehicle?: string;
+  serviceName?: string;
+  rating: number;
+  comment: string;
+  visible: boolean;
+  createdAt: string;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  category?: string;
+  visible: boolean;
 }

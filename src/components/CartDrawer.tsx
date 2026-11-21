@@ -16,15 +16,18 @@ import {
   QrCode,
   CheckCircle2,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  MapPin,
+  Navigation
 } from 'lucide-react';
-import { CartItem, CompanyConfig, Appointment } from '../types';
+import { CartItem, CompanyConfig, Appointment, ServiceDeliveryMode } from '../types';
 import {
   getStoredAppointments,
   getAvailableSlotsForDay,
   getUpcomingBookingDates,
   bookAppointment,
   buildWhatsAppUrl,
+  formatDeliveryModeLabel,
 } from '../utils/scheduling';
 
 interface CartDrawerProps {
@@ -54,7 +57,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState<ServiceDeliveryMode>('cliente_traz');
+  const [pickupAddress, setPickupAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [cardNotice, setCardNotice] = useState<string | null>(null);
   
   const upcomingDates = getUpcomingBookingDates(14);
   const [selectedDate, setSelectedDate] = useState<string>(upcomingDates[0] || '');
@@ -64,8 +70,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [lastAppointment, setLastAppointment] = useState<Appointment | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'local'>('pix');
-
-  if (!isOpen) return null;
 
   // Totals calculations
   const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -86,24 +90,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       : null;
   }, [allAppointments, selectedDate, totalDurationMinutes, config.slotIntervalMinutes]);
 
+  if (!isOpen) return null;
+
   const handleCopyPix = () => {
     navigator.clipboard.writeText(config.pixKey);
     setCopiedPix(true);
     setTimeout(() => setCopiedPix(false), 3000);
   };
 
+  const hasValidCardLink =
+    Boolean(config.paymentLink) &&
+    config.paymentLink !== 'COLOCAR_LINK_DE_PAGAMENTO_AQUI' &&
+    config.paymentLink.trim() !== '';
+
   const handlePayWithCard = () => {
-    if (
-      !config.paymentLink ||
-      config.paymentLink === 'COLOCAR_LINK_DE_PAGAMENTO_AQUI' ||
-      config.paymentLink.trim() === ''
-    ) {
-      alert(
-        'O link oficial de pagamento com cartão ainda está em configuração pelo proprietário. Você pode pagar via PIX ou diretamente na loja.'
-      );
-      return;
-    }
-    window.open(config.paymentLink, '_blank', 'noopener,noreferrer');
+    setCardNotice(
+      'Aceitamos Cartão de Crédito e Débito na maquininha presencial na loja! Você também pode pagar via PIX ou configurar o link online no Painel Admin.'
+    );
   };
 
   const handleFinalizeOrder = (e: React.FormEvent) => {
@@ -122,6 +125,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setCheckoutError('Por favor escolha a data e o horário para o atendimento.');
       return;
     }
+    if (deliveryMode === 'leva_traz' && pickupAddress.trim().length < 6) {
+      setCheckoutError('Informe o endereço completo (rua, número e bairro) para irmos buscar seu carro.');
+      return;
+    }
 
     const serviceIds = items.map((i) => i.service.id);
     const serviceNames = items.map((i) => `${i.service.name} (${i.quantity}x)`);
@@ -130,6 +137,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       clientName: clientName.trim(),
       clientPhone: clientPhone.trim(),
       vehicleModel: vehicleModel.trim() || undefined,
+      deliveryMode,
+      pickupAddress: deliveryMode === 'leva_traz' ? pickupAddress.trim() : undefined,
       serviceIds,
       serviceNames,
       date: selectedDate,
@@ -157,6 +166,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     const dateFormatted = lastAppointment.date ? lastAppointment.date.split('-').reverse().join('/') : '';
     const servicesText = Array.isArray(lastAppointment.serviceNames) ? lastAppointment.serviceNames.join('\n- ') : '';
     const totalText = subtotal > 0 ? `R$ ${subtotal.toFixed(2).replace('.', ',')}` : 'A consultar';
+    const deliveryLabel = formatDeliveryModeLabel(lastAppointment.deliveryMode);
+    const pickupLine =
+      lastAppointment.deliveryMode === 'leva_traz' && lastAppointment.pickupAddress
+        ? `🏠 *Endereço para Busca:* ${lastAppointment.pickupAddress}\n`
+        : '';
 
     return `*NOVO PEDIDO / AGENDAMENTO - ${config.name.toUpperCase()}*
 
@@ -165,7 +179,8 @@ Olá! Gostaria de confirmar meu agendamento realizado pelo site:
 👤 *Cliente:* ${lastAppointment.clientName}
 📱 *WhatsApp:* ${lastAppointment.clientPhone}
 🚗 *Veículo:* ${lastAppointment.vehicleModel || 'Não informado'}
-📅 *Data:* ${dateFormatted}
+🚙 *Modalidade:* ${deliveryLabel}
+${pickupLine}📅 *Data:* ${dateFormatted}
 ⏰ *Horário:* ${lastAppointment.time} (Duração est.: ~${lastAppointment.durationMinutes} min)
 
 📋 *Serviços Selecionados:*
@@ -455,10 +470,76 @@ Por favor, confirme meu horário!`;
                 )}
               </div>
 
+              {/* Delivery Mode Selection (Leva e Traz vs Cliente Traz) */}
+              <div className="space-y-3 pt-3 border-t border-neutral-800">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+                  3. Como Prefere o Atendimento?
+                </h4>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMode('cliente_traz');
+                      setCheckoutError(null);
+                    }}
+                    className={`p-2.5 text-left rounded-xl border transition-all flex items-start gap-2 ${
+                      deliveryMode === 'cliente_traz'
+                        ? 'bg-amber-500/15 border-amber-500 text-white'
+                        : 'bg-neutral-950 text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${deliveryMode === 'cliente_traz' ? 'text-amber-400' : 'text-neutral-500'}`} />
+                    <div>
+                      <span className="block text-xs font-bold">Vou levar o carro</span>
+                      <span className="block text-[10px] text-neutral-400">Levar até a loja</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMode('leva_traz');
+                      setCheckoutError(null);
+                    }}
+                    className={`p-2.5 text-left rounded-xl border transition-all flex items-start gap-2 ${
+                      deliveryMode === 'leva_traz'
+                        ? 'bg-amber-500/15 border-amber-500 text-white'
+                        : 'bg-neutral-950 text-neutral-300 border-neutral-800 hover:border-neutral-700'
+                    }`}
+                  >
+                    <Navigation className={`w-4 h-4 shrink-0 mt-0.5 ${deliveryMode === 'leva_traz' ? 'text-amber-400' : 'text-neutral-500'}`} />
+                    <div>
+                      <span className="block text-xs font-bold">Buscamos no local</span>
+                      <span className="block text-[10px] text-neutral-400">Leva e Traz em Vitória</span>
+                    </div>
+                  </button>
+                </div>
+
+                {deliveryMode === 'leva_traz' && (
+                  <div className="p-3 rounded-xl bg-neutral-950 border border-amber-500/30 space-y-1.5">
+                    <label className="block text-[11px] font-semibold text-amber-400">
+                      Endereço para Busca *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Rua, número, bairro e ponto de referência..."
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-white text-xs focus:outline-none focus:border-amber-500"
+                    />
+                    <p className="text-[10px] text-neutral-400">
+                      Confirmamos disponibilidade e eventual taxa pelo WhatsApp conforme seu bairro.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Payment Method Selection */}
               <div className="space-y-3 pt-3 border-t border-neutral-800">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                  3. Pagamento
+                  4. Pagamento
                 </h4>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -526,14 +607,31 @@ Por favor, confirme meu horário!`;
                     <p className="text-xs text-neutral-400">
                       Pague online de forma segura com cartão de crédito/débito através do checkout:
                     </p>
-                    <button
-                      type="button"
-                      onClick={handlePayWithCard}
-                      className="w-full py-2.5 px-3 text-xs font-bold rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 hover:brightness-110 flex items-center justify-center gap-2"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      <span>PAGAR COM CARTÃO</span>
-                    </button>
+                    {hasValidCardLink ? (
+                      <a
+                        href={config.paymentLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-3 text-xs font-bold rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 hover:brightness-110 flex items-center justify-center gap-2"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        <span>PAGAR COM CARTÃO</span>
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handlePayWithCard}
+                        className="w-full py-2.5 px-3 text-xs font-bold rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-neutral-950 hover:brightness-110 flex items-center justify-center gap-2"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        <span>PAGAR COM CARTÃO</span>
+                      </button>
+                    )}
+                    {cardNotice && (
+                      <p className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2">
+                        {cardNotice}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -592,6 +690,18 @@ Por favor, confirme meu horário!`;
                     {lastAppointment.serviceNames.join(', ')}
                   </span>
                 </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-neutral-400 shrink-0">Modalidade:</span>
+                  <span className="text-amber-400 font-semibold text-right">
+                    {formatDeliveryModeLabel(lastAppointment.deliveryMode)}
+                  </span>
+                </div>
+                {lastAppointment.deliveryMode === 'leva_traz' && lastAppointment.pickupAddress && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-neutral-400 shrink-0">Busca em:</span>
+                    <span className="text-neutral-200 text-right">{lastAppointment.pickupAddress}</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-1 border-t border-neutral-850">
                   <span className="text-neutral-400">Total:</span>
                   <span className="font-bold text-white">

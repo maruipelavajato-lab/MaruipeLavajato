@@ -11,16 +11,17 @@ import {
   Copy,
   ExternalLink,
   ShieldCheck,
-  CreditCard,
-  QrCode
+  MapPin,
+  Navigation
 } from 'lucide-react';
-import { Service, Appointment, CompanyConfig } from '../types';
+import { Service, Appointment, CompanyConfig, ServiceDeliveryMode } from '../types';
 import {
   getAvailableSlotsForDay,
   getUpcomingBookingDates,
   bookAppointment,
   buildWhatsAppBookingMessage,
   buildWhatsAppUrl,
+  formatDeliveryModeLabel,
 } from '../utils/scheduling';
 
 interface SmartSchedulerSectionProps {
@@ -48,6 +49,8 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState<ServiceDeliveryMode>('cliente_traz');
+  const [pickupAddress, setPickupAddress] = useState('');
   const [notes, setNotes] = useState('');
 
   // States
@@ -94,6 +97,10 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
       setBookingError('Selecione uma data e um horário disponível.');
       return;
     }
+    if (deliveryMode === 'leva_traz' && pickupAddress.trim().length < 6) {
+      setBookingError('Informe o endereço completo (rua, número e bairro) para irmos buscar seu carro.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -101,6 +108,8 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
       clientName: clientName.trim(),
       clientPhone: clientPhone.trim(),
       vehicleModel: vehicleModel.trim() || undefined,
+      deliveryMode,
+      pickupAddress: deliveryMode === 'leva_traz' ? pickupAddress.trim() : undefined,
       serviceIds: [selectedService.id],
       serviceNames: [selectedService.name],
       date: selectedDate,
@@ -280,10 +289,80 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
                 )}
               </div>
 
-              {/* 4. Dados para Confirmação */}
+              {/* 4. Modalidade de Atendimento (Leva e Traz vs Cliente Traz) */}
               <div className="space-y-3 pt-3 border-t border-neutral-800">
                 <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
-                  4. Seus Dados de Contato
+                  4. Como Prefere o Atendimento?
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMode('cliente_traz');
+                      setBookingError(null);
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 ${
+                      deliveryMode === 'cliente_traz'
+                        ? 'bg-amber-500/15 border-amber-500 text-white'
+                        : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:border-neutral-700'
+                    }`}
+                  >
+                    <MapPin className={`w-5 h-5 shrink-0 mt-0.5 ${deliveryMode === 'cliente_traz' ? 'text-amber-400' : 'text-neutral-500'}`} />
+                    <div>
+                      <span className="block text-xs sm:text-sm font-bold">Vou levar o carro até a loja</span>
+                      <span className="block text-[11px] text-neutral-400 mt-0.5">
+                        {config.address}
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMode('leva_traz');
+                      setBookingError(null);
+                    }}
+                    className={`p-3.5 rounded-xl border text-left transition-all flex items-start gap-3 ${
+                      deliveryMode === 'leva_traz'
+                        ? 'bg-amber-500/15 border-amber-500 text-white'
+                        : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:border-neutral-700'
+                    }`}
+                  >
+                    <Navigation className={`w-5 h-5 shrink-0 mt-0.5 ${deliveryMode === 'leva_traz' ? 'text-amber-400' : 'text-neutral-500'}`} />
+                    <div>
+                      <span className="block text-xs sm:text-sm font-bold">Buscar meu carro no local</span>
+                      <span className="block text-[11px] text-neutral-400 mt-0.5">
+                        Serviço Leva e Traz: buscamos e entregamos seu veículo
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                {deliveryMode === 'leva_traz' && (
+                  <div className="p-4 rounded-xl bg-neutral-900 border border-amber-500/30 space-y-2">
+                    <label className="block text-[11px] font-semibold text-amber-400">
+                      Endereço para Busca e Devolução *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Av. Maruípe, 510, Maruípe (Próx. ao Hospital)"
+                      value={pickupAddress}
+                      onChange={(e) => setPickupAddress(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500"
+                    />
+                    <p className="text-[11px] text-neutral-400">
+                      Confirmamos via WhatsApp a disponibilidade da equipe e eventual taxa conforme a região em Vitória/ES.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Dados para Confirmação */}
+              <div className="space-y-3 pt-3 border-t border-neutral-800">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-400">
+                  5. Seus Dados de Contato
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -426,6 +505,18 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
                   <div className="flex justify-between border-b border-neutral-800 pb-2">
                     <span className="text-neutral-400">Veículo:</span>
                     <span className="text-neutral-200">{confirmedAppointment.vehicleModel}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b border-neutral-800 pb-2 gap-3">
+                  <span className="text-neutral-400 shrink-0">Modalidade:</span>
+                  <span className="text-amber-400 font-semibold text-right">
+                    {formatDeliveryModeLabel(confirmedAppointment.deliveryMode)}
+                  </span>
+                </div>
+                {confirmedAppointment.deliveryMode === 'leva_traz' && confirmedAppointment.pickupAddress && (
+                  <div className="flex justify-between border-b border-neutral-800 pb-2 gap-3">
+                    <span className="text-neutral-400 shrink-0">Endereço de Busca:</span>
+                    <span className="text-neutral-200 text-right">{confirmedAppointment.pickupAddress}</span>
                   </div>
                 )}
                 <div className="flex justify-between pt-1">

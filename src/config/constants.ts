@@ -6,7 +6,7 @@ import { CompanyConfig } from '../types';
  */
 export const DEFAULT_CONFIG: CompanyConfig = {
   name: "Maruípe Lava Jato Estética Automotiva",
-  address: "Rua Daniel Abreu Machado, 1406 – Vitória/ES",
+  address: "Rua Daniel Abreu Machado, 406 – Vitória/ES",
   whatsappPhone: "(27) 99286-9471",
   whatsappDigits: "5527992869471",
   pixKey: "27 99286-9471",
@@ -29,14 +29,25 @@ export function getStoredCompanyConfig(): CompanyConfig {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Ensure updated business hours take precedence if older defaults exist
-      return {
+      const rawAddress = typeof parsed.address === 'string' ? parsed.address : '';
+      const migratedAddress = rawAddress
+        ? rawAddress.replace(/Rua Daniel Abreu Machado,\s*1406/gi, 'Rua Daniel Abreu Machado, 406')
+        : DEFAULT_CONFIG.address;
+
+      const normalized: CompanyConfig = {
         ...DEFAULT_CONFIG,
         ...parsed,
+        address: migratedAddress,
         businessHoursWeekdays: parsed.businessHoursWeekdays || DEFAULT_CONFIG.businessHoursWeekdays,
         businessHoursSaturday: parsed.businessHoursSaturday || DEFAULT_CONFIG.businessHoursSaturday,
         businessHoursSunday: parsed.businessHoursSunday || DEFAULT_CONFIG.businessHoursSunday,
       };
+
+      if (rawAddress && migratedAddress !== rawAddress) {
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(normalized));
+      }
+
+      return normalized;
     }
   } catch (err) {
     console.error('Erro ao carregar configurações:', err);

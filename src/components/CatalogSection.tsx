@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Calendar, Search, Clock, Sparkles } from 'lucide-react';
+import { ShoppingBag, Calendar, Search, Clock, X } from 'lucide-react';
 import { Service, ServiceCategory } from '../types';
 
 interface CatalogSectionProps {
   services: Service[];
   onAddToCart: (service: Service) => void;
   onOpenSchedule: (service: Service) => void;
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 export const CatalogSection: React.FC<CatalogSectionProps> = ({
@@ -16,11 +23,15 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<'all' | ServiceCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const normalizedQuery = normalizeSearchText(searchQuery.trim());
+
   const filteredServices = services.filter((service) => {
     const matchesCategory = selectedCategory === 'all' || service.category === selectedCategory;
+    if (!normalizedQuery) return matchesCategory;
     const matchesSearch =
-      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description.toLowerCase().includes(searchQuery.toLowerCase());
+      normalizeSearchText(service.name).includes(normalizedQuery) ||
+      normalizeSearchText(service.description).includes(normalizedQuery) ||
+      (service.includes?.some((inc) => normalizeSearchText(inc).includes(normalizedQuery)) ?? false);
     return matchesCategory && matchesSearch;
   });
 
@@ -43,15 +54,26 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
           </div>
 
           {/* Search bar */}
-          <div className="relative w-full md:w-72">
-            <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar serviço..."
-              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
+              placeholder="Pesquisar serviço pelo nome (ex: Vitrificação, Polimento)..."
+              aria-label="Pesquisar serviço pelo nome"
+              className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Limpar pesquisa"
+                className="p-1 rounded-lg text-neutral-400 hover:text-white absolute right-2.5 top-1/2 -translate-y-1/2"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -90,6 +112,27 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
         </div>
 
         {/* Catalog Items Grid */}
+        {filteredServices.length === 0 ? (
+          <div className="py-14 px-6 rounded-2xl bg-neutral-900/70 border border-neutral-800 text-center space-y-3">
+            <Search className="w-8 h-8 text-neutral-500 mx-auto" />
+            <p className="text-sm sm:text-base font-bold text-white">
+              Nenhum serviço encontrado para “{searchQuery}”
+            </p>
+            <p className="text-xs sm:text-sm text-neutral-400">
+              Tente buscar outro termo ou limpe os filtros para ver todo o catálogo.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+              }}
+              className="py-2 px-4 rounded-xl bg-amber-500 text-neutral-950 font-bold text-xs hover:brightness-110 transition-all"
+            >
+              Mostrar Todos os Serviços
+            </button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredServices.map((service) => (
             <div
@@ -165,6 +208,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             </div>
           ))}
         </div>
+        )}
 
       </div>
     </section>

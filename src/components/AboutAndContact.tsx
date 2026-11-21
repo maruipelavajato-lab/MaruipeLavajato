@@ -9,6 +9,9 @@ interface AboutAndContactProps {
 
 export const AboutAndContact: React.FC<AboutAndContactProps> = ({ config, onOpenSchedule }) => {
   const [copiedPix, setCopiedPix] = useState(false);
+  const [cardNotice, setCardNotice] = useState<string | null>(null);
+  const hasValidCardLink =
+    Boolean(config.paymentLink) && config.paymentLink !== 'COLOCAR_LINK_DE_PAGAMENTO_AQUI';
 
   const handleCopyPix = () => {
     navigator.clipboard.writeText(config.pixKey);
@@ -17,7 +20,7 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = ({ config, onOpen
   };
 
   const googleMapsDirectionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    'Rua Daniel Abreu Machado, 1406, Vitória, ES'
+    config.address || 'Rua Daniel Abreu Machado, 406, Vitória, ES'
   )}`;
 
   return (
@@ -113,12 +116,12 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = ({ config, onOpen
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
                   <MapPin className="w-5 h-5" />
                 </div>
-                <h3 className="font-display text-lg font-bold text-white">Endereço</h3>
+                <h3 className="font-display text-lg font-bold text-white">Endereço &amp; Leva e Traz</h3>
                 <p className="text-sm text-neutral-300">
                   {config.address}
                 </p>
                 <p className="text-xs text-neutral-400">
-                  Próximo às principais vias de Maruípe com fácil acesso e estacionamento.
+                  Você pode trazer seu carro até a loja ou solicitar que <strong className="text-amber-400">busquemos no local (Leva e Traz)</strong> ao agendar.
                 </p>
               </div>
 
@@ -199,19 +202,36 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = ({ config, onOpen
                   <span>{copiedPix ? 'Chave Copiada com Sucesso!' : 'COPIAR CHAVE PIX'}</span>
                 </button>
 
-                <button
-                  onClick={() => {
-                    if (!config.paymentLink || config.paymentLink === 'COLOCAR_LINK_DE_PAGAMENTO_AQUI') {
-                      alert('Aceitamos cartão de crédito e débito na maquininha sem fio no local ou na entrega do seu veículo! Caso deseje pagar por link antecipado, solicite diretamente pelo WhatsApp.');
-                    } else {
-                      window.open(config.paymentLink, '_blank');
+                {hasValidCardLink ? (
+                  <a
+                    href={config.paymentLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-4 text-xs font-bold rounded-xl bg-neutral-800 hover:bg-neutral-750 text-white border border-neutral-700 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4 text-amber-400" />
+                    <span>PAGAR COM CARTÃO (Crédito / Débito)</span>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCardNotice(
+                        'Aceitamos cartão de crédito e débito na maquininha sem fio na entrega do veículo! Para link antecipado, solicite pelo WhatsApp.'
+                      )
                     }
-                  }}
-                  className="w-full py-2.5 px-4 text-xs font-bold rounded-xl bg-neutral-800 hover:bg-neutral-750 text-white border border-neutral-700 flex items-center justify-center gap-2 transition-colors"
-                >
-                  <CreditCard className="w-4 h-4 text-amber-400" />
-                  <span>PAGAR COM CARTÃO (Crédito / Débito)</span>
-                </button>
+                    className="w-full py-2.5 px-4 text-xs font-bold rounded-xl bg-neutral-800 hover:bg-neutral-750 text-white border border-neutral-700 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <CreditCard className="w-4 h-4 text-amber-400" />
+                    <span>PAGAR COM CARTÃO (Crédito / Débito)</span>
+                  </button>
+                )}
+
+                {cardNotice && (
+                  <p className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+                    {cardNotice}
+                  </p>
+                )}
               </div>
             </div>
 

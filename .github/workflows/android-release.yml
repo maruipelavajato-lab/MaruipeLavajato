@@ -1,0 +1,137 @@
+name: Build Android Release APK & AAB
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Compilar, Assinar e Verificar APK + AAB (API 35)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Configurar Android SDK 35 e Build Tools 35.0.0
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0 platform-tools'
+
+      - name: Instalar dependências Web
+        run: npm install --legacy-peer-deps
+
+      - name: Compilar Web App e sincronizar Capacitor Android
+        run: |
+          npm run build
+          rm -f dist/*.zip dist/*.apk dist/*.aab
+          npx cap sync android
+
+      - name: Configurar Keystore de Assinatura Digital
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASS" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASS" ]; then
+            echo "Usando Keystore oficial persistente dos GitHub Secrets."
+            echo "$KEYSTORE_B64" | base64 --decode > android/maruipe-upload-keystore.jks
+            cat <<EOF > android/keystore.properties
+          storeFile=maruipe-upload-keystore.jks
+          storePassword=$STORE_PASS
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASS
+          EOF
+            echo "IS_PRODUCTION_KEYSTORE=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::GitHub Secrets de assinatura não encontrados. Gerando chave temporária APENAS para teste do APK (configure ANDROID_KEYSTORE_BASE64 antes de publicar na Play Store)."
+            TEMP_PASS=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore android/maruipe-upload-keystore.jks -storetype PKCS12 \
+              -alias maruipe_test_key -keyalg RSA -keysize 2048 -validity 3650 \
+              -storepass "$TEMP_PASS" -keypass "$TEMP_PASS" \
+              -dname "CN=Maruipe Lava Jato, OU=Estetica Automotiva, O=Maruipe Lava Jato, L=Vitoria, ST=ES, C=BR"
+            cat <<EOF > android/keystore.properties
+          storeFile=maruipe-upload-keystore.jks
+          storePassword=$TEMP_PASS
+          keyAlias=maruipe_test_key
+          keyPassword=$TEMP_PASS
+          EOF
+            echo "IS_PRODUCTION_KEYSTORE=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compilar Release AAB e APK Assinados
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - name: Auditoria Pós-Build (Assinatura e Permissões)
+        run: |
+          APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
+          BUILD_TOOLS="${ANDROID_HOME}/build-tools/35.0.0"
+
+          echo "=== Verificando assinatura apksigner ==="
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK_PATH"
+
+          echo "=== Verificando permissões declaradas no APK ==="
+          "$BUILD_TOOLS/aapt2" dump permissions "$APK_PATH"
+
+          echo "=== Preparando nomes finais para distribuição ==="
+          mkdir -p release-outputs
+          cp "$APK_PATH" release-outputs/Maruipe-Lava-Jato-Zion.apk
+          cp "$AAB_PATH" release-outputs/Maruipe-Lava-Jato-PlayStore.aab
+
+          echo "### Resumo do Build Android" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Package ID:** \`com.maruipelavajato.app\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Target SDK:** API 35 (Android 15)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$IS_PRODUCTION_KEYSTORE" = "true" ]; then
+            echo "- **Assinatura:** Keystore Persistente de Produção (pronto para Play Store)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- **Assinatura:** Chave Temporária de Teste (configure \`ANDROID_KEYSTORE_BASE64\` antes da Play Store)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Enviar APK Assinado como Artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maruipe-Lava-Jato-APK
+          path: release-outputs/Maruipe-Lava-Jato-Zion.apk
+
+      - name: Enviar AAB Play Store como Artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maruipe-Lava-Jato-PlayStore-AAB
+          path: release-outputs/Maruipe-Lava-Jato-PlayStore.aab
+
+      - name: Publicar na aba Releases do GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Maruípe Lava Jato — App Android (APK & Play Store AAB)
+          body: |
+            Build automático oficial do aplicativo **Maruípe Lava Jato + Agente IA Zion**.
+            - **APK direto:** `Maruipe-Lava-Jato-Zion.apk`
+            - **Google Play Store (.AAB):** `Maruipe-Lava-Jato-PlayStore.aab`
+            - **Target SDK:** Android 15 (API 35) | **Package ID:** `com.maruipelavajato.app`
+          files: |
+            release-outputs/Maruipe-Lava-Jato-Zion.apk
+            release-outputs/Maruipe-Lava-Jato-PlayStore.aab
+          make_latest: true

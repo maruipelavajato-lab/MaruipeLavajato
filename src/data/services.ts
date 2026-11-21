@@ -180,6 +180,22 @@ export const INITIAL_SERVICES: Service[] = [
       'Secagem e aromatização suave do habitáculo',
     ],
   },
+  {
+    id: 'vitrificacao-automotiva',
+    name: 'Vitrificação Automotiva',
+    category: 'estetica',
+    price: null,
+    priceLabel: 'Consultar valores',
+    durationMinutes: 240,
+    description: 'Proteção cerâmica de alta dureza (9H) para a pintura, formando uma barreira vitrificada contra raios UV, seiva, chuva ácida e micro-riscos com brilho vítreo duradouro.',
+    image: '/assets/images/vitrificacao_automotiva_1794745894353.jpg',
+    includes: [
+      'Descontaminação técnica e preparação completa da pintura',
+      'Aplicação de coating cerâmico vitrificador de alta proteção',
+      'Efeito hidrofóbico extremo (repele água e sujeira com facilidade)',
+      'Brilho profundo espelhado e proteção UV de longa duração',
+    ],
+  },
 ];
 
 const SERVICES_STORAGE_KEY = 'maruipe_services_catalog';
@@ -199,14 +215,18 @@ export function getStoredServices(): Service[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         // Map stored services, ensuring initial services use their curated official image
+        // and appending any newly added catalog items missing from older localStorage snapshots
         const initialMap = new Map(INITIAL_SERVICES.map((s) => [s.id, s.image]));
-        return parsed.map((s) => {
+        const parsedIds = new Set(parsed.map((s) => s.id));
+        const migrated = parsed.map((s) => {
           const officialImg = initialMap.get(s.id);
           return {
             ...s,
             image: officialImg || normalizeImagePath(s.image),
           };
         });
+        const newlyAdded = INITIAL_SERVICES.filter((s) => !parsedIds.has(s.id));
+        return [...migrated, ...newlyAdded];
       }
     }
   } catch (err) {
