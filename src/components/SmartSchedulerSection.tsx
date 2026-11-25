@@ -23,6 +23,7 @@ import {
   buildWhatsAppUrl,
   formatDeliveryModeLabel,
 } from '../utils/scheduling';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface SmartSchedulerSectionProps {
   services: Service[];
@@ -45,12 +46,40 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(upcomingDates[0] || '');
   const [selectedTime, setSelectedTime] = useState<string>('');
 
-  // Form fields
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
+  // Form fields (pre-filled from saved profile if present)
+  const [clientName, setClientName] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.name || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [clientPhone, setClientPhone] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.phone || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [vehicleModel, setVehicleModel] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.vehicle || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [deliveryMode, setDeliveryMode] = useState<ServiceDeliveryMode>('cliente_traz');
-  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupAddress, setPickupAddress] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.address || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [notes, setNotes] = useState('');
 
   // States
@@ -131,10 +160,12 @@ export const SmartSchedulerSection: React.FC<SmartSchedulerSectionProps> = ({
     onAppointmentBooked(result.appointment);
   };
 
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(config.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 3000);
+  const handleCopyPix = async () => {
+    const ok = await copyToClipboard(config.pixKey);
+    if (ok) {
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 3000);
+    }
   };
 
   const whatsappMessage = confirmedAppointment

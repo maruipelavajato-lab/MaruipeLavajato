@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Phone, Clock, QrCode, Copy, Shield, Sparkles, Navigation, ExternalLink, CreditCard } from 'lucide-react';
 import { CompanyConfig } from '../types';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface AboutAndContactProps {
   config: CompanyConfig;
@@ -13,10 +14,12 @@ export const AboutAndContact: React.FC<AboutAndContactProps> = ({ config, onOpen
   const hasValidCardLink =
     Boolean(config.paymentLink) && config.paymentLink !== 'COLOCAR_LINK_DE_PAGAMENTO_AQUI';
 
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(config.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 3000);
+  const handleCopyPix = async () => {
+    const ok = await copyToClipboard(config.pixKey);
+    if (ok) {
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 3000);
+    }
   };
 
   const googleMapsDirectionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(

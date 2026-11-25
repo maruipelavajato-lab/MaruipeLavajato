@@ -3,20 +3,6 @@ import { Service } from '../types';
 export const INITIAL_SERVICES: Service[] = [
   // --- LAVAGENS ---
   {
-    id: 'lavagem-simples',
-    name: 'Lavagem Simples',
-    category: 'lavagens',
-    price: 35,
-    durationMinutes: 45,
-    description: 'Lavar + aspirar + pretinho nos pneus com produtos de alta performance.',
-    image: '/assets/images/lavagem_simples_limpo_1794408423912.jpg',
-    includes: [
-      'Lavagem externa completa',
-      'Aspiração interna detalhada',
-      'Aplicação de pretinho de longa duração nos pneus',
-    ],
-  },
-  {
     id: 'lavagem-especial',
     name: 'Lavagem Especial',
     category: 'lavagens',
@@ -214,11 +200,11 @@ export function getStoredServices(): Service[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Map stored services, ensuring initial services use their curated official image
-        // and appending any newly added catalog items missing from older localStorage snapshots
+        // Map stored services, removing discontinued lavagem-simples and ensuring official images
         const initialMap = new Map(INITIAL_SERVICES.map((s) => [s.id, s.image]));
-        const parsedIds = new Set(parsed.map((s) => s.id));
-        const migrated = parsed.map((s) => {
+        const filteredStored = parsed.filter((s) => s && s.id !== 'lavagem-simples');
+        const parsedIds = new Set(filteredStored.map((s) => s.id));
+        const migrated = filteredStored.map((s) => {
           const officialImg = initialMap.get(s.id);
           return {
             ...s,
@@ -226,7 +212,11 @@ export function getStoredServices(): Service[] {
           };
         });
         const newlyAdded = INITIAL_SERVICES.filter((s) => !parsedIds.has(s.id));
-        return [...migrated, ...newlyAdded];
+        const result = [...migrated, ...newlyAdded];
+        if (filteredStored.length !== parsed.length) {
+          saveStoredServices(result);
+        }
+        return result;
       }
     }
   } catch (err) {

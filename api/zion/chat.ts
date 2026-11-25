@@ -48,8 +48,7 @@ function buildZionSystemInstruction(services?: ServiceSummary[], company?: Compa
             return `- ${s.name}${promoTag}: ${priceText} (Duração média: ~${s.durationMinutes} min). ${s.description}${incText}`;
           })
           .join('\n')
-      : `- Lavagem Simples: R$ 35 (~45 min). Lavar + aspirar + pretinho nos pneus.
-- Lavagem Especial [PROMOÇÃO DESTAQUE]: R$ 50 (~60 min). Lavagem + aspiração + pretinho + cera protetora + revitalização dos plásticos por dentro e por fora.
+      : `- Lavagem Especial [PROMOÇÃO DESTAQUE]: R$ 50 (~60 min). Lavagem + aspiração + pretinho + cera protetora + revitalização dos plásticos por dentro e por fora.
 - Lavagem Premium Detalhada: A partir de R$ 90 (~90 min). Lavagem detalhada com pincelamento + cera premium + revitalização dos plásticos + acabamento premium.
 - Polimento de Farol: Consultar preço (~60 min).
 - Polimento Automotivo: Consultar preço (~180 min).

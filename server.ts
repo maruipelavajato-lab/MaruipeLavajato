@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import crypto from 'crypto';
+import fs from 'fs';
 import http from 'http';
+import zlib from 'zlib';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -59,8 +61,7 @@ function buildZionSystemInstruction(services?: ServiceSummary[], company?: Compa
             return `- ${s.name}${promoTag}: ${priceText} (Duração média: ~${s.durationMinutes} min). ${s.description}${incText}`;
           })
           .join('\n')
-      : `- Lavagem Simples: R$ 35 (~45 min). Lavar + aspirar + pretinho nos pneus.
-- Lavagem Especial [PROMOÇÃO DESTAQUE]: R$ 50 (~60 min). Lavagem + aspiração + pretinho + cera protetora + revitalização dos plásticos por dentro e por fora.
+      : `- Lavagem Especial [PROMOÇÃO DESTAQUE]: R$ 50 (~60 min). Lavagem + aspiração + pretinho + cera protetora + revitalização dos plásticos por dentro e por fora.
 - Lavagem Premium Detalhada: A partir de R$ 90 (~90 min). Lavagem detalhada com pincelamento + cera premium + revitalização dos plásticos + acabamento premium.
 - Polimento de Farol: Consultar preço (~60 min). Restauração de transparência e selante UV.
 - Polimento Automotivo: Consultar preço (~180 min). Remoção de riscos, swirls e restauração de brilho.
@@ -98,6 +99,122 @@ REGRAS DE CONDUTA DO ZION:
 3. Para dúvidas sobre estética automotiva ou serviços do ${companyName}: diagnostique a necessidade do veículo, recomende o serviço exato do catálogo acima e explique prazos/valores com precisão.
 4. Para serviços com preço "Consultar preço" ou "Consultar valores", informe o que está incluso e explique que o orçamento exato depende da avaliação do veículo, orientando clicar em "Agendar" ou falar no WhatsApp ${whatsapp}.
 5. Nunca invente preços, endereços, serviços ou promoções do ${companyName} que não estejam listados acima.`;
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    crc = CRC32_TABLE[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+const EXPORT_EXCLUDED_DIRS = new Set([
+  'node_modules',
+  'dist',
+  'dev-dist',
+  '.git',
+  '.vercel',
+  '.gradle',
+  'build',
+  'Pods',
+]);
+
+function collectProjectFiles(rootDir: string, currentRel = ''): string[] {
+  const absCurrent = currentRel ? path.join(rootDir, currentRel) : rootDir;
+  const entries = fs.readdirSync(absCurrent, { withFileTypes: true });
+  const results: string[] = [];
+
+  for (const entry of entries) {
+    const relPath = currentRel ? `${currentRel}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      if (EXPORT_EXCLUDED_DIRS.has(entry.name)) continue;
+      if (relPath === 'android/.gradle' || relPath === 'android/app/build' || relPath === 'android/build') continue;
+      results.push(...collectProjectFiles(rootDir, relPath));
+    } else if (entry.isFile()) {
+      if (/^\.env($|\.)/.test(entry.name) && entry.name !== '.env.example') continue;
+      if (/\.(zip|apk|aab|ipa|log)$/i.test(entry.name)) continue;
+      results.push(relPath.replace(/\\/g, '/'));
+    }
+  }
+  return results;
+}
+
+function buildProjectZipBuffer(rootDir: string): Buffer {
+  const relFiles = collectProjectFiles(rootDir).sort();
+  const localParts: Buffer[] = [];
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+
+  for (const relPath of relFiles) {
+    const absPath = path.join(rootDir, relPath);
+    const data = fs.readFileSync(absPath);
+    const compressed = zlib.deflateRawSync(data);
+    const crc = crc32(data);
+    const nameBuf = Buffer.from(relPath, 'utf8');
+
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0x0800, 6);
+    localHeader.writeUInt16LE(8, 8);
+    localHeader.writeUInt16LE(0, 10);
+    localHeader.writeUInt16LE(0, 12);
+    localHeader.writeUInt32LE(crc, 14);
+    localHeader.writeUInt32LE(compressed.length, 18);
+    localHeader.writeUInt32LE(data.length, 22);
+    localHeader.writeUInt16LE(nameBuf.length, 26);
+    localHeader.writeUInt16LE(0, 28);
+
+    localParts.push(localHeader, nameBuf, compressed);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0x0800, 8);
+    centralHeader.writeUInt16LE(8, 10);
+    centralHeader.writeUInt16LE(0, 12);
+    centralHeader.writeUInt16LE(0, 14);
+    centralHeader.writeUInt32LE(crc, 16);
+    centralHeader.writeUInt32LE(compressed.length, 20);
+    centralHeader.writeUInt32LE(data.length, 24);
+    centralHeader.writeUInt16LE(nameBuf.length, 28);
+    centralHeader.writeUInt16LE(0, 30);
+    centralHeader.writeUInt16LE(0, 32);
+    centralHeader.writeUInt16LE(0, 34);
+    centralHeader.writeUInt16LE(0, 36);
+    centralHeader.writeUInt32LE(0, 38);
+    centralHeader.writeUInt32LE(offset, 42);
+
+    centralParts.push(centralHeader, nameBuf);
+    offset += localHeader.length + nameBuf.length + compressed.length;
+  }
+
+  const centralDir = Buffer.concat(centralParts);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(relFiles.length, 8);
+  eocd.writeUInt16LE(relFiles.length, 10);
+  eocd.writeUInt32LE(centralDir.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localParts, centralDir, eocd]);
 }
 
 async function createServer() {
@@ -145,6 +262,49 @@ async function createServer() {
     }
 
     return res.status(200).json({ authenticated: true });
+  });
+
+  app.options('/api/admin/export-project', (_req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(200).end();
+  });
+
+  app.post('/api/admin/export-project', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    const configuredPassword = (process.env.ADMIN_PASSWORD || '').trim();
+    if (!configuredPassword) {
+      return res.status(503).json({
+        error:
+          'Exportação bloqueada por segurança: defina ADMIN_PASSWORD em Settings > Secrets para liberar apenas ao proprietário.',
+      });
+    }
+
+    const provided = typeof req.body?.password === 'string' ? req.body.password.trim() : '';
+    if (!provided) {
+      return res.status(401).json({ error: 'Senha do proprietário obrigatória.' });
+    }
+
+    const inputHash = crypto.createHash('sha256').update(provided, 'utf8').digest();
+    const secretHash = crypto.createHash('sha256').update(configuredPassword, 'utf8').digest();
+    if (!crypto.timingSafeEqual(inputHash, secretHash)) {
+      return res.status(401).json({ error: 'Senha incorreta. Acesso negado.' });
+    }
+
+    try {
+      const zipBuffer = buildProjectZipBuffer(__dirname);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="maruipe-lavajato-github.zip"');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(zipBuffer);
+    } catch (err) {
+      console.error('Erro ao gerar pacote de exportação:', err);
+      return res.status(500).json({ error: 'Erro interno ao gerar pacote ZIP para GitHub.' });
+    }
   });
 
   app.options('/api/zion/chat', (_req, res) => {

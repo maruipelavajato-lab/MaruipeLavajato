@@ -26,7 +26,7 @@ function getZionEndpoint(): string {
     Boolean(cap?.isNativePlatform?.()) ||
     window.location.protocol === 'capacitor:' ||
     window.location.protocol === 'file:' ||
-    (window.location.hostname === 'localhost' && window.location.port === '');
+    (window.location.protocol === 'https:' && window.location.hostname === 'localhost' && window.location.port === '');
 
   return isCapacitor ? REMOTE_ZION_ENDPOINT : '/api/zion/chat';
 }
@@ -137,10 +137,9 @@ export function buildLocalZionReply(
   const q = normalizeText(userText);
 
   const byId = (id: string) => services.find((s) => s.id === id);
-  const lavSimples = byId('lavagem-simples');
   const lavEspecial = byId('lavagem-especial');
-  const lavPremium = byId('lavagem-premium-detalhada');
-  const farol = byId('polimento-de-farol');
+  const lavPremium = byId('lavagem-premium') || byId('lavagem-premium-detalhada');
+  const farol = byId('polimento-farol') || byId('polimento-de-farol');
   const polimento = byId('polimento-automotivo');
   const micropolimento = byId('micropolimento');
   const motor = byId('lavagem-de-motor');
@@ -276,8 +275,8 @@ export function buildLocalZionReply(
     return `Fazemos a **${s?.name || 'Higienização das Rodas'}** (~${s?.durationMinutes || 45} min · **${s ? formatServicePrice(s) : 'Consultar preço'}**) com remoção de poeira de freio e pretinho de alta durabilidade.`;
   }
 
-  if (q.includes('simples') || q.includes('basica') || q.includes('35')) {
-    return `A **${lavSimples?.name || 'Lavagem Simples'}** custa **${lavSimples ? formatServicePrice(lavSimples) : 'R$ 35'}** (~${lavSimples?.durationMinutes || 45} min) e inclui: lavagem externa completa, aspiração interna e pretinho nos pneus.\n\nPor apenas R$ 15 a mais, você leva a **Lavagem Especial (R$ 50)** com cera + revitalização de plásticos!`;
+  if (q.includes('simples') || q.includes('basica') || q.includes('lavagem de 35') || q.includes('r$ 35')) {
+    return `Atualmente trabalhamos a partir da **${lavEspecial?.name || 'Lavagem Especial'}** por apenas **${lavEspecial ? formatServicePrice(lavEspecial) : 'R$ 50'}** (~${lavEspecial?.durationMinutes || 60} min), que já inclui lavagem técnica completa, aspiração, pretinho, cera protetora e revitalização dos plásticos internos e externos!\n\nTambém temos a **${lavPremium?.name || 'Lavagem Premium Detalhada'}** (${lavPremium ? formatServicePrice(lavPremium) : 'A partir de R$ 90'}). Quer agendar?`;
   }
 
   if (q.includes('especial') || q.includes('promo') || q.includes('50') || q.includes('indica') || q.includes('recomenda') || q.includes('melhor')) {
@@ -298,7 +297,7 @@ export function buildLocalZionReply(
     q.includes('tabela') ||
     q.includes('tudo')
   ) {
-    return `Confira nossos principais valores no **${config.name}**:\n- **Lavagem Simples:** ${lavSimples ? formatServicePrice(lavSimples) : 'R$ 35'}\n- **Lavagem Especial (Promoção):** ${lavEspecial ? formatServicePrice(lavEspecial) : 'R$ 50'}\n- **Lavagem Premium Detalhada:** ${lavPremium ? formatServicePrice(lavPremium) : 'A partir de R$ 90'}\n- **Estética (Vitrificação Automotiva, Farol, Polimento, Micropolimento, Higienização, Motor, Rodas, Cera, Plásticos):** Consultar valores após rápida avaliação.\n\nEscolha no **Catálogo** ou clique em **Agendar**!`;
+    return `Confira nossos principais valores no **${config.name}**:\n- **Lavagem Especial (Promoção):** ${lavEspecial ? formatServicePrice(lavEspecial) : 'R$ 50'}\n- **Lavagem Premium Detalhada:** ${lavPremium ? formatServicePrice(lavPremium) : 'A partir de R$ 90'}\n- **Estética (Vitrificação Automotiva, Farol, Polimento, Micropolimento, Higienização, Motor, Rodas, Cera, Plásticos):** Consultar valores após rápida avaliação.\n\nEscolha no **Catálogo** ou clique em **Agendar**!`;
   }
 
   if (q.includes('agendar') || q.includes('marcar') || q.includes('reserva') || q.includes('vaga')) {
@@ -318,7 +317,7 @@ export function buildLocalZionReply(
     q.includes('veiculo') ||
     q.includes('estetica')
   ) {
-    return `Aqui no **${config.name}** temos:\n- **Lavagem Simples (R$ 35)** e **Lavagem Especial em Promoção (R$ 50)**\n- **Lavagem Premium Detalhada (a partir de R$ 90)**\n- **Estética Completa:** Vitrificação Automotiva, Polimento, Farol, Higienização Interna, Motor, Rodas, Cera e Plásticos\n\nTambém temos **Leva e Traz** (buscamos no local ou você traz na ${config.address}). Toque em **Agendar** ou pergunte mais detalhes!`;
+    return `Aqui no **${config.name}** temos:\n- **Lavagem Especial em Promoção (R$ 50)**\n- **Lavagem Premium Detalhada (a partir de R$ 90)**\n- **Estética Completa:** Vitrificação Automotiva, Polimento, Farol, Higienização Interna, Motor, Rodas, Cera e Plásticos\n\nTambém temos **Leva e Traz** (buscamos no local ou você traz na ${config.address}). Toque em **Agendar** ou pergunte mais detalhes!`;
   }
 
   if (q.includes('que dia') || q.includes('data de hoje') || q.includes('que horas') || q.includes('hora agora')) {

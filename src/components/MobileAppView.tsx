@@ -43,6 +43,7 @@ import {
   getMyAppointmentIds,
 } from '../utils/scheduling';
 import { queryZionAssistant } from '../utils/zionClient';
+import { copyToClipboard } from '../utils/clipboard';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface MobileAppViewProps {
@@ -99,11 +100,18 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
   const [catalogSearch, setCatalogSearch] = useState('');
 
   // Detect standalone installed mode or Capacitor native Android shell
+  const cap =
+    typeof window !== 'undefined'
+      ? (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
+      : undefined;
   const isCapacitorNative =
     typeof window !== 'undefined' &&
-    (Boolean((window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) ||
+    (Boolean(cap?.isNativePlatform?.()) ||
       window.location.protocol === 'capacitor:' ||
-      (window.location.hostname === 'localhost' && window.location.port === ''));
+      window.location.protocol === 'file:' ||
+      (window.location.protocol === 'https:' &&
+        window.location.hostname === 'localhost' &&
+        window.location.port === ''));
 
   const isStandalone =
     isCapacitorNative ||
@@ -133,7 +141,8 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
   const [selectedServiceId, setSelectedServiceId] = useState<string>(
     services[0]?.id || 'lavagem-especial'
   );
-  const upcomingDates = getUpcomingBookingDates(14);
+  const [bookingFromCart, setBookingFromCart] = useState<boolean>(false);
+  const upcomingDates = React.useMemo(() => getUpcomingBookingDates(14), []);
   const [selectedDate, setSelectedDate] = useState<string>(upcomingDates[0] || '');
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [deliveryMode, setDeliveryMode] = useState<ServiceDeliveryMode>('cliente_traz');
@@ -142,6 +151,12 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
   const [appNotes, setAppNotes] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState<Appointment | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (services.length > 0 && !services.some((s) => s.id === selectedServiceId)) {
+      setSelectedServiceId(services[0].id);
+    }
+  }, [services, selectedServiceId]);
 
   // Payments state
   const [copiedPix, setCopiedPix] = useState(false);
@@ -256,9 +271,11 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
       return;
     }
 
-    const useCart = cartItems.length > 0 && currentTab === 'agendamento';
+    const useCart = bookingFromCart && cartItems.length > 0;
     const serviceIds = useCart ? cartItems.map((c) => c.service.id) : [selectedService.id];
-    const serviceNames = useCart ? cartItems.map((c) => c.service.name) : [selectedService.name];
+    const serviceNames = useCart
+      ? cartItems.map((c) => (c.quantity > 1 ? `${c.service.name} (${c.quantity}x)` : c.service.name))
+      : [selectedService.name];
     const totalDuration = useCart
       ? cartItems.reduce((acc, c) => acc + c.service.durationMinutes * c.quantity, 0)
       : selectedService.durationMinutes;
@@ -299,20 +316,29 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
     };
     setClientProfile(updatedProfile);
     localStorage.setItem('maruipe_user_profile', JSON.stringify(updatedProfile));
-    if (useCart) onClearCart();
+    if (useCart) {
+      onClearCart();
+      setBookingFromCart(false);
+    }
     onAppointmentBooked?.(result.appointment);
     setBookingSuccess(result.appointment);
   };
 
   const handleCartCheckoutInApp = () => {
     if (cartItems.length === 0) return;
+    setBookingFromCart(true);
+    setBookingSuccess(null);
+    setBookingError(null);
+    setAgendaSubTab('novo');
     setCurrentTab('agendamento');
   };
 
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(config.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 3000);
+  const handleCopyPix = async () => {
+    const ok = await copyToClipboard(config.pixKey);
+    if (ok) {
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 3000);
+    }
   };
 
   const sendZionMessage = async (textOverride?: string) => {
@@ -496,6 +522,9 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                   <button
                     onClick={() => {
                       setSelectedServiceId('lavagem-especial');
+                      setBookingFromCart(false);
+                      setBookingSuccess(null);
+                      setAgendaSubTab('novo');
                       setCurrentTab('agendamento');
                     }}
                     className="py-2 px-3 text-xs font-bold rounded-xl bg-neutral-800 text-white border border-neutral-700 flex items-center justify-center gap-1.5"
@@ -532,7 +561,11 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
               {/* 4 Main Action Buttons */}
               <div className="grid grid-cols-2 gap-2.5">
                 <button
-                  onClick={() => setCurrentTab('agendamento')}
+                  onClick={() => {
+                    setBookingFromCart(false);
+                    setAgendaSubTab('novo');
+                    setCurrentTab('agendamento');
+                  }}
                   className="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 flex flex-col items-center text-center gap-2 group transition-all"
                 >
                   <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
@@ -635,7 +668,9 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                         <button
                           onClick={() => {
                             setSelectedServiceId(s.id);
+                            setBookingFromCart(false);
                             setBookingSuccess(null);
+                            setAgendaSubTab('novo');
                             setCurrentTab('agendamento');
                           }}
                           className="px-2.5 py-2 rounded-lg bg-amber-500 text-neutral-950 font-bold text-[11px] flex items-center gap-1"
@@ -810,6 +845,7 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                       <button
                         onClick={() => {
                           setSelectedServiceId(service.id);
+                          setBookingFromCart(false);
                           setBookingSuccess(null);
                           setAgendaSubTab('novo');
                           setCurrentTab('agendamento');
@@ -1018,25 +1054,55 @@ export const MobileAppView: React.FC<MobileAppViewProps> = ({
                 </div>
               ) : !bookingSuccess ? (
                 <form onSubmit={handleAppBooking} className="space-y-3.5">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-neutral-400 mb-1">
-                      Serviço Desejado
-                    </label>
-                    <select
-                      value={selectedServiceId}
-                      onChange={(e) => {
-                        setSelectedServiceId(e.target.value);
-                        setSelectedTime('');
-                      }}
-                      className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white"
-                    >
-                      {services.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.price ? `R$ ${s.price}` : s.priceLabel || 'Consultar'})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {bookingFromCart && cartItems.length > 0 ? (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/40 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-amber-400">
+                          Agendando itens do Carrinho ({cartItems.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setBookingFromCart(false)}
+                          className="text-[10px] font-semibold text-neutral-300 hover:text-white underline"
+                        >
+                          Escolher 1 serviço
+                        </button>
+                      </div>
+                      <ul className="space-y-1 text-[11px] text-neutral-200">
+                        {cartItems.map((item) => (
+                          <li key={item.service.id} className="flex justify-between gap-2">
+                            <span className="truncate">
+                              {item.quantity}x {item.service.name}
+                            </span>
+                            <span className="text-amber-400 font-semibold shrink-0">
+                              {item.service.price ? `R$ ${(item.service.price * item.quantity).toFixed(2)}` : 'Consultar'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[11px] font-semibold text-neutral-400 mb-1">
+                        Serviço Desejado
+                      </label>
+                      <select
+                        value={selectedServiceId}
+                        onChange={(e) => {
+                          setSelectedServiceId(e.target.value);
+                          setBookingFromCart(false);
+                          setSelectedTime('');
+                        }}
+                        className="w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white"
+                      >
+                        {services.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.price ? `R$ ${s.price}` : s.priceLabel || 'Consultar'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-[11px] font-semibold text-neutral-400 mb-1">

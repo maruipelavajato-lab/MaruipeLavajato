@@ -46,7 +46,12 @@ export default function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('maruipe_cart');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((item) => item?.service?.id && item.service.id !== 'lavagem-simples');
+        }
+      }
     } catch {
       // ignore
     }
@@ -68,7 +73,8 @@ export default function App() {
     const isCapacitor =
       Boolean(cap?.isNativePlatform?.()) ||
       window.location.protocol === 'capacitor:' ||
-      (window.location.hostname === 'localhost' && window.location.port === '');
+      window.location.protocol === 'file:' ||
+      (window.location.protocol === 'https:' && window.location.hostname === 'localhost' && window.location.port === '');
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true;

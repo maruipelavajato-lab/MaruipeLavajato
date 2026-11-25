@@ -32,8 +32,14 @@ export const LavagensSection: React.FC<LavagensSectionProps> = ({
           </p>
         </div>
 
-        {/* 3 Lavagens Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+        {/* Lavagens Cards */}
+        <div
+          className={`grid grid-cols-1 gap-6 lg:gap-8 items-stretch ${
+            lavagens.length === 2
+              ? 'md:grid-cols-2 max-w-4xl mx-auto'
+              : 'md:grid-cols-3'
+          }`}
+        >
           {lavagens.map((service) => {
             const isEspecial = service.id === 'lavagem-especial';
             const isPremium = service.id === 'lavagem-premium';

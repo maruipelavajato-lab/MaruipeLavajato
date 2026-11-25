@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShoppingBag,
   X,
@@ -29,6 +29,7 @@ import {
   buildWhatsAppUrl,
   formatDeliveryModeLabel,
 } from '../utils/scheduling';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -53,16 +54,44 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   const [step, setStep] = useState<'cart' | 'checkout' | 'success'>('cart');
 
-  // Checkout form
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
+  // Checkout form (pre-filled from saved profile when available)
+  const [clientName, setClientName] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.name || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [clientPhone, setClientPhone] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.phone || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [vehicleModel, setVehicleModel] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.vehicle || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [deliveryMode, setDeliveryMode] = useState<ServiceDeliveryMode>('cliente_traz');
-  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupAddress, setPickupAddress] = useState(() => {
+    try {
+      const saved = localStorage.getItem('maruipe_user_profile');
+      return saved ? JSON.parse(saved)?.address || '' : '';
+    } catch {
+      return '';
+    }
+  });
   const [notes, setNotes] = useState('');
   const [cardNotice, setCardNotice] = useState<string | null>(null);
   
-  const upcomingDates = getUpcomingBookingDates(14);
+  const upcomingDates = useMemo(() => getUpcomingBookingDates(14), []);
   const [selectedDate, setSelectedDate] = useState<string>(upcomingDates[0] || '');
   const [selectedTime, setSelectedTime] = useState<string>('');
 
@@ -70,6 +99,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [lastAppointment, setLastAppointment] = useState<Appointment | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao' | 'local'>('pix');
+
+  // Reset confirmation screen whenever new items are added and drawer opens
+  useEffect(() => {
+    if (isOpen && step === 'success' && items.length > 0) {
+      setStep('cart');
+      setSelectedTime('');
+      setCheckoutError(null);
+    }
+  }, [isOpen, items.length, step]);
 
   // Totals calculations
   const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -83,8 +121,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   }, 0);
 
   // Slots availability for the combined duration
-  const allAppointments = React.useMemo(() => getStoredAppointments(), [isOpen]);
-  const dayAvailability = React.useMemo(() => {
+  const allAppointments = useMemo(() => getStoredAppointments(), [isOpen]);
+  const dayAvailability = useMemo(() => {
     return selectedDate
       ? getAvailableSlotsForDay(allAppointments, selectedDate, totalDurationMinutes || 60, config.slotIntervalMinutes)
       : null;
@@ -92,10 +130,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(config.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 3000);
+  const handleCloseDrawer = () => {
+    if (step === 'success') {
+      setStep('cart');
+    }
+    onClose();
+  };
+
+  const handleCopyPix = async () => {
+    const ok = await copyToClipboard(config.pixKey);
+    if (ok) {
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 3000);
+    }
   };
 
   const hasValidCardLink =
@@ -214,7 +261,7 @@ Por favor, confirme meu horário!`;
             </h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleCloseDrawer}
             className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition-colors"
             aria-label="Fechar carrinho"
           >

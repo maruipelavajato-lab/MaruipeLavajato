@@ -25,6 +25,7 @@ import {
   buildWhatsAppUrl,
   formatDeliveryModeLabel,
 } from '../utils/scheduling';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface SmartSchedulerProps {
   services: Service[];
@@ -70,17 +71,31 @@ export const SmartScheduler: React.FC<SmartSchedulerProps> = ({
     return getStoredAppointments();
   }, [isOpen, confirmedAppointment]);
 
-  // Sync pre-selected service and reset previous confirmation state whenever modal opens
+  // Sync pre-selected service, saved profile defaults, and reset confirmation state when modal opens
   useEffect(() => {
     if (isOpen) {
       if (initialService?.id) {
         setSelectedServiceId(initialService.id);
+      } else if (!services.some((s) => s.id === selectedServiceId) && services[0]?.id) {
+        setSelectedServiceId(services[0].id);
+      }
+      try {
+        const saved = localStorage.getItem('maruipe_user_profile');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (!clientName && parsed?.name) setClientName(parsed.name);
+          if (!clientPhone && parsed?.phone) setClientPhone(parsed.phone);
+          if (!vehicleModel && parsed?.vehicle) setVehicleModel(parsed.vehicle);
+          if (!pickupAddress && parsed?.address) setPickupAddress(parsed.address);
+        }
+      } catch {
+        // ignore
       }
       setConfirmedAppointment(null);
       setSelectedTime('');
       setBookingError(null);
     }
-  }, [isOpen, initialService?.id]);
+  }, [isOpen, initialService?.id, services]);
 
   const selectedService = useMemo(() => {
     return services.find((s) => s.id === selectedServiceId) || services[0];
@@ -159,10 +174,12 @@ export const SmartScheduler: React.FC<SmartSchedulerProps> = ({
     }
   };
 
-  const handleCopyPix = () => {
-    navigator.clipboard.writeText(config.pixKey);
-    setCopiedPix(true);
-    setTimeout(() => setCopiedPix(false), 3000);
+  const handleCopyPix = async () => {
+    const ok = await copyToClipboard(config.pixKey);
+    if (ok) {
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 3000);
+    }
   };
 
   const whatsappMessage = confirmedAppointment

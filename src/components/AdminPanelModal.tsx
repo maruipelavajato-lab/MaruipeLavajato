@@ -19,6 +19,8 @@ import {
   Plus,
   Pencil,
   HelpCircle,
+  Download,
+  FolderArchive,
 } from 'lucide-react';
 import { Service, Appointment, AppointmentStatus, CompanyConfig, OwnerNotification, Testimonial, FaqItem } from '../types';
 import { saveCompanyConfig } from '../config/constants';
@@ -49,17 +51,19 @@ interface AdminPanelModalProps {
   onUpdateFaqs: (faqs: FaqItem[]) => void;
 }
 
-const REMOTE_ADMIN_VERIFY_ENDPOINT = 'https://maruipe-lavajato-one.vercel.app/api/admin/verify';
+const REMOTE_ADMIN_BASE = 'https://maruipe-lavajato-one.vercel.app';
 
-function getAdminVerifyEndpoint(): string {
-  if (typeof window === 'undefined') return '/api/admin/verify';
+function getAdminEndpoint(path: string): string {
+  if (typeof window === 'undefined') return path;
   const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
   const isCapacitor =
     Boolean(cap?.isNativePlatform?.()) ||
     window.location.protocol === 'capacitor:' ||
     window.location.protocol === 'file:' ||
-    (window.location.hostname === 'localhost' && window.location.port === '');
-  return isCapacitor ? REMOTE_ADMIN_VERIFY_ENDPOINT : '/api/admin/verify';
+    (window.location.protocol === 'https:' &&
+      window.location.hostname === 'localhost' &&
+      window.location.port === '');
+  return isCapacitor ? `${REMOTE_ADMIN_BASE}${path}` : path;
 }
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
@@ -86,8 +90,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     }
   });
   const [passwordInput, setPasswordInput] = useState('');
+  const [ownerPassword, setOwnerPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+
+  const [exportPasswordInput, setExportPasswordInput] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'geral' | 'agendamentos' | 'precos' | 'depoimentos' | 'faq' | 'notificacoes'>('geral');
   const [tempConfig, setTempConfig] = useState<CompanyConfig>({ ...config });
@@ -118,6 +128,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       setTempConfig({ ...config });
       setTempServices([...services]);
       setAuthError(null);
+      setExportError(null);
+      setExportSuccess(null);
       setConfirmDeleteId(null);
       setConfirmDeleteTestimonialId(null);
       setConfirmDeleteFaqId(null);
@@ -135,7 +147,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setAuthError(null);
 
     try {
-      const response = await fetch(getAdminVerifyEndpoint(), {
+      const response = await fetch(getAdminEndpoint('/api/admin/verify'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pwd }),
@@ -148,6 +160,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
         } catch {
           // ignore
         }
+        setOwnerPassword(pwd);
         setIsAuthenticated(true);
         setPasswordInput('');
       } else {
@@ -170,7 +183,68 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     }
     setIsAuthenticated(false);
     setPasswordInput('');
+    setOwnerPassword('');
+    setExportPasswordInput('');
+    setExportError(null);
+    setExportSuccess(null);
     setAuthError(null);
+  };
+
+  const handleExportProjectZip = async () => {
+    const pwdToUse = (ownerPassword || exportPasswordInput).trim();
+    if (!pwdToUse) {
+      setExportError('Confirme sua senha do proprietário acima para liberar o download do pacote.');
+      return;
+    }
+
+    setExportLoading(true);
+    setExportError(null);
+    setExportSuccess(null);
+
+    try {
+      const response = await fetch(getAdminEndpoint('/api/admin/export-project'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwdToUse }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setExportError(
+          data?.error ||
+            'Não foi possível gerar o arquivo ZIP neste ambiente. Use também o menu Download / Export do AI Studio.'
+        );
+        return;
+      }
+
+      const blob = await response.blob();
+      if (!blob || blob.size === 0) {
+        setExportError('Arquivo recebido vazio. Tente novamente.');
+        return;
+      }
+
+      if (!ownerPassword) {
+        setOwnerPassword(pwdToUse);
+        setExportPasswordInput('');
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'maruipe-lavajato-github.zip';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+      setExportSuccess('Pacote maruipe-lavajato-github.zip baixado! Descompacte e envie para o seu GitHub.');
+    } catch {
+      setExportError(
+        'Sem conexão com o servidor para exportar o pacote. Verifique se ADMIN_PASSWORD está configurado ou baixe pelo menu superior do AI Studio.'
+      );
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const handleSaveGeneralConfig = (e: React.FormEvent) => {
@@ -573,6 +647,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
           
           {/* TAB 1: EMPRESA & LINKS */}
           {activeTab === 'geral' && (
+            <>
             <form onSubmit={handleSaveGeneralConfig} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
@@ -716,6 +791,72 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </button>
               </div>
             </form>
+
+            {/* Owner-only ZIP Export Section for GitHub */}
+            <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-neutral-950 border border-amber-500/30 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <FolderArchive className="w-4 h-4" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-xs sm:text-sm font-bold text-white">
+                    Baixar Arquivos Atualizados para GitHub (.ZIP)
+                  </h4>
+                  <p className="text-[11px] text-neutral-400 leading-relaxed">
+                    Download protegido exclusivo do proprietário (nenhum arquivo fica exposto publicamente no site). Contém o código-fonte limpo pronto para subir no GitHub, sem pastas pesadas ou chaves secretas.
+                  </p>
+                </div>
+              </div>
+
+              {!ownerPassword && (
+                <div>
+                  <label className="block text-[11px] font-semibold text-neutral-300 mb-1">
+                    Confirme sua senha do proprietário para liberar o download:
+                  </label>
+                  <input
+                    type="password"
+                    value={exportPasswordInput}
+                    onChange={(e) => setExportPasswordInput(e.target.value)}
+                    placeholder="Digite sua senha do painel..."
+                    className="w-full sm:max-w-xs px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-white text-xs focus:border-amber-500 outline-none"
+                  />
+                </div>
+              )}
+
+              {exportError && (
+                <div className="p-2.5 rounded-xl bg-red-950/50 border border-red-500/30 text-red-200 text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <span>{exportError}</span>
+                </div>
+              )}
+
+              {exportSuccess && (
+                <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/50 text-emerald-200 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{exportSuccess}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleExportProjectZip}
+                disabled={exportLoading}
+                className="py-2.5 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-amber-500/50 text-amber-400 font-bold text-xs flex items-center gap-2 disabled:opacity-50 transition-colors"
+              >
+                {exportLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Gerando pacote ZIP...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>Baixar Pacote Atualizado (.ZIP para GitHub)</span>
+                  </>
+                )}
+              </button>
+            </div>
+            </>
           )}
 
           {/* TAB 2: AGENDAMENTOS */}

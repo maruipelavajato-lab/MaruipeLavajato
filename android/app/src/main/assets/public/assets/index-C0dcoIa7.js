@@ -11953,6 +11953,32 @@ var Eye = createLucideIcon("eye", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var FolderArchive = createLucideIcon("folder-archive", [
+	["circle", {
+		cx: "15",
+		cy: "19",
+		r: "2",
+		key: "u2pros"
+	}],
+	["path", {
+		d: "M20.9 19.8A2 2 0 0 0 22 18V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h5.1",
+		key: "1jj40k"
+	}],
+	["path", {
+		d: "M15 11v-1",
+		key: "cntcp"
+	}],
+	["path", {
+		d: "M15 17v-2",
+		key: "1279jj"
+	}]
+]);
+/**
+* @license lucide-react v0.546.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Globe = createLucideIcon("globe", [
 	["circle", {
 		cx: "12",
@@ -13518,7 +13544,7 @@ var LavagensSection = ({ services, onAddToCart, onOpenSchedule }) => {
 					})
 				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch",
+				className: `grid grid-cols-1 gap-6 lg:gap-8 items-stretch ${lavagens.length === 2 ? "md:grid-cols-2 max-w-4xl mx-auto" : "md:grid-cols-3"}`,
 				children: lavagens.map((service) => {
 					const isEspecial = service.id === "lavagem-especial";
 					const isPremium = service.id === "lavagem-premium";
@@ -14361,15 +14387,42 @@ var DownloadAppSection = ({ config, onOpenMobileAppMode }) => {
 		]
 	});
 };
+// src/utils/clipboard.ts
+async function copyToClipboard(text) {
+	if (typeof window === "undefined" || !text) return false;
+	try {
+		if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+			await navigator.clipboard.writeText(text);
+			return true;
+		}
+	} catch {}
+	try {
+		const textarea = document.createElement("textarea");
+		textarea.value = text;
+		textarea.setAttribute("readonly", "");
+		textarea.style.position = "fixed";
+		textarea.style.left = "-9999px";
+		textarea.style.opacity = "0";
+		document.body.appendChild(textarea);
+		textarea.select();
+		textarea.setSelectionRange(0, textarea.value.length);
+		const copied = document.execCommand("copy");
+		document.body.removeChild(textarea);
+		return copied;
+	} catch {
+		return false;
+	}
+}
 // src/components/AboutAndContact.tsx
 var AboutAndContact = ({ config, onOpenSchedule }) => {
 	const [copiedPix, setCopiedPix] = (0, import_react.useState)(false);
 	const [cardNotice, setCardNotice] = (0, import_react.useState)(null);
 	const hasValidCardLink = Boolean(config.paymentLink) && config.paymentLink !== "COLOCAR_LINK_DE_PAGAMENTO_AQUI";
-	const handleCopyPix = () => {
-		navigator.clipboard.writeText(config.pixKey);
-		setCopiedPix(true);
-		setTimeout(() => setCopiedPix(false), 3e3);
+	const handleCopyPix = async () => {
+		if (await copyToClipboard(config.pixKey)) {
+			setCopiedPix(true);
+			setTimeout(() => setCopiedPix(false), 3e3);
+		}
 	};
 	const googleMapsDirectionsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(config.address || "Rua Daniel Abreu Machado, 406, Vitória, ES")}`;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
@@ -14809,20 +14862,59 @@ var Footer = ({ config, onOpenAdmin, onOpenAppDownload, onOpenSchedule, onOpenPr
 // src/components/CartDrawer.tsx
 var CartDrawer = ({ isOpen, onClose, items, config, onUpdateQuantity, onRemoveItem, onClearCart, onAppointmentBooked }) => {
 	const [step, setStep] = (0, import_react.useState)("cart");
-	const [clientName, setClientName] = (0, import_react.useState)("");
-	const [clientPhone, setClientPhone] = (0, import_react.useState)("");
-	const [vehicleModel, setVehicleModel] = (0, import_react.useState)("");
+	const [clientName, setClientName] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.name || "" : "";
+		} catch {
+			return "";
+		}
+	});
+	const [clientPhone, setClientPhone] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.phone || "" : "";
+		} catch {
+			return "";
+		}
+	});
+	const [vehicleModel, setVehicleModel] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.vehicle || "" : "";
+		} catch {
+			return "";
+		}
+	});
 	const [deliveryMode, setDeliveryMode] = (0, import_react.useState)("cliente_traz");
-	const [pickupAddress, setPickupAddress] = (0, import_react.useState)("");
+	const [pickupAddress, setPickupAddress] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.address || "" : "";
+		} catch {
+			return "";
+		}
+	});
 	const [notes, setNotes] = (0, import_react.useState)("");
 	const [cardNotice, setCardNotice] = (0, import_react.useState)(null);
-	const upcomingDates = getUpcomingBookingDates(14);
+	const upcomingDates = (0, import_react.useMemo)(() => getUpcomingBookingDates(14), []);
 	const [selectedDate, setSelectedDate] = (0, import_react.useState)(upcomingDates[0] || "");
 	const [selectedTime, setSelectedTime] = (0, import_react.useState)("");
 	const [copiedPix, setCopiedPix] = (0, import_react.useState)(false);
 	const [checkoutError, setCheckoutError] = (0, import_react.useState)(null);
 	const [lastAppointment, setLastAppointment] = (0, import_react.useState)(null);
 	const [paymentMethod, setPaymentMethod] = (0, import_react.useState)("pix");
+	(0, import_react.useEffect)(() => {
+		if (isOpen && step === "success" && items.length > 0) {
+			setStep("cart");
+			setSelectedTime("");
+			setCheckoutError(null);
+		}
+	}, [
+		isOpen,
+		items.length,
+		step
+	]);
 	const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
 	const subtotal = items.reduce((sum, item) => {
 		return sum + (item.service.price || 0) * item.quantity;
@@ -14831,8 +14923,8 @@ var CartDrawer = ({ isOpen, onClose, items, config, onUpdateQuantity, onRemoveIt
 	const totalDurationMinutes = items.reduce((sum, item) => {
 		return sum + item.service.durationMinutes * item.quantity;
 	}, 0);
-	const allAppointments = import_react.useMemo(() => getStoredAppointments(), [isOpen]);
-	const dayAvailability = import_react.useMemo(() => {
+	const allAppointments = (0, import_react.useMemo)(() => getStoredAppointments(), [isOpen]);
+	const dayAvailability = (0, import_react.useMemo)(() => {
 		return selectedDate ? getAvailableSlotsForDay(allAppointments, selectedDate, totalDurationMinutes || 60, config.slotIntervalMinutes) : null;
 	}, [
 		allAppointments,
@@ -14841,10 +14933,15 @@ var CartDrawer = ({ isOpen, onClose, items, config, onUpdateQuantity, onRemoveIt
 		config.slotIntervalMinutes
 	]);
 	if (!isOpen) return null;
-	const handleCopyPix = () => {
-		navigator.clipboard.writeText(config.pixKey);
-		setCopiedPix(true);
-		setTimeout(() => setCopiedPix(false), 3e3);
+	const handleCloseDrawer = () => {
+		if (step === "success") setStep("cart");
+		onClose();
+	};
+	const handleCopyPix = async () => {
+		if (await copyToClipboard(config.pixKey)) {
+			setCopiedPix(true);
+			setTimeout(() => setCopiedPix(false), 3e3);
+		}
 	};
 	const hasValidCardLink = Boolean(config.paymentLink) && config.paymentLink !== "COLOCAR_LINK_DE_PAGAMENTO_AQUI" && config.paymentLink.trim() !== "";
 	const handlePayWithCard = () => {
@@ -14942,7 +15039,7 @@ Por favor, confirme meu horário!`;
 							]
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						onClick: onClose,
+						onClick: handleCloseDrawer,
 						className: "p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition-colors",
 						"aria-label": "Fechar carrinho",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "w-5 h-5" })
@@ -15507,11 +15604,26 @@ var SmartScheduler = ({ services, initialService, config, isOpen, onClose, onApp
 	(0, import_react.useEffect)(() => {
 		if (isOpen) {
 			if (initialService?.id) setSelectedServiceId(initialService.id);
+			else if (!services.some((s) => s.id === selectedServiceId) && services[0]?.id) setSelectedServiceId(services[0].id);
+			try {
+				const saved = localStorage.getItem("maruipe_user_profile");
+				if (saved) {
+					const parsed = JSON.parse(saved);
+					if (!clientName && parsed?.name) setClientName(parsed.name);
+					if (!clientPhone && parsed?.phone) setClientPhone(parsed.phone);
+					if (!vehicleModel && parsed?.vehicle) setVehicleModel(parsed.vehicle);
+					if (!pickupAddress && parsed?.address) setPickupAddress(parsed.address);
+				}
+			} catch {}
 			setConfirmedAppointment(null);
 			setSelectedTime("");
 			setBookingError(null);
 		}
-	}, [isOpen, initialService?.id]);
+	}, [
+		isOpen,
+		initialService?.id,
+		services
+	]);
 	const selectedService = (0, import_react.useMemo)(() => {
 		return services.find((s) => s.id === selectedServiceId) || services[0];
 	}, [services, selectedServiceId]);
@@ -15574,10 +15686,11 @@ var SmartScheduler = ({ services, initialService, config, isOpen, onClose, onApp
 		setConfirmedAppointment(result.appointment);
 		if (onAppointmentBooked) onAppointmentBooked(result.appointment);
 	};
-	const handleCopyPix = () => {
-		navigator.clipboard.writeText(config.pixKey);
-		setCopiedPix(true);
-		setTimeout(() => setCopiedPix(false), 3e3);
+	const handleCopyPix = async () => {
+		if (await copyToClipboard(config.pixKey)) {
+			setCopiedPix(true);
+			setTimeout(() => setCopiedPix(false), 3e3);
+		}
 	};
 	const whatsappMessage = confirmedAppointment ? buildWhatsAppBookingMessage(confirmedAppointment, config.name) : "";
 	const whatsappUrl = buildWhatsAppUrl(config.whatsappDigits, whatsappMessage);
@@ -16027,11 +16140,39 @@ var SmartSchedulerSection = ({ services, config, appointments, onAppointmentBook
 	const upcomingDates = (0, import_react.useMemo)(() => getUpcomingBookingDates(14), []);
 	const [selectedDate, setSelectedDate] = (0, import_react.useState)(upcomingDates[0] || "");
 	const [selectedTime, setSelectedTime] = (0, import_react.useState)("");
-	const [clientName, setClientName] = (0, import_react.useState)("");
-	const [clientPhone, setClientPhone] = (0, import_react.useState)("");
-	const [vehicleModel, setVehicleModel] = (0, import_react.useState)("");
+	const [clientName, setClientName] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.name || "" : "";
+		} catch {
+			return "";
+		}
+	});
+	const [clientPhone, setClientPhone] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.phone || "" : "";
+		} catch {
+			return "";
+		}
+	});
+	const [vehicleModel, setVehicleModel] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.vehicle || "" : "";
+		} catch {
+			return "";
+		}
+	});
 	const [deliveryMode, setDeliveryMode] = (0, import_react.useState)("cliente_traz");
-	const [pickupAddress, setPickupAddress] = (0, import_react.useState)("");
+	const [pickupAddress, setPickupAddress] = (0, import_react.useState)(() => {
+		try {
+			const saved = localStorage.getItem("maruipe_user_profile");
+			return saved ? JSON.parse(saved)?.address || "" : "";
+		} catch {
+			return "";
+		}
+	});
 	const [notes, setNotes] = (0, import_react.useState)("");
 	const [isSubmitting, setIsSubmitting] = (0, import_react.useState)(false);
 	const [bookingError, setBookingError] = (0, import_react.useState)(null);
@@ -16098,10 +16239,11 @@ var SmartSchedulerSection = ({ services, config, appointments, onAppointmentBook
 		setConfirmedAppointment(result.appointment);
 		onAppointmentBooked(result.appointment);
 	};
-	const handleCopyPix = () => {
-		navigator.clipboard.writeText(config.pixKey);
-		setCopiedPix(true);
-		setTimeout(() => setCopiedPix(false), 3e3);
+	const handleCopyPix = async () => {
+		if (await copyToClipboard(config.pixKey)) {
+			setCopiedPix(true);
+			setTimeout(() => setCopiedPix(false), 3e3);
+		}
 	};
 	const whatsappMessage = confirmedAppointment ? buildWhatsAppBookingMessage(confirmedAppointment, config.name) : "";
 	const whatsappUrl = buildWhatsAppUrl(config.whatsappDigits, whatsappMessage);
@@ -16595,20 +16737,6 @@ function saveCompanyConfig(config) {
 // src/data/services.ts
 var INITIAL_SERVICES = [
 	{
-		id: "lavagem-simples",
-		name: "Lavagem Simples",
-		category: "lavagens",
-		price: 35,
-		durationMinutes: 45,
-		description: "Lavar + aspirar + pretinho nos pneus com produtos de alta performance.",
-		image: "/assets/images/lavagem_simples_limpo_1794408423912.jpg",
-		includes: [
-			"Lavagem externa completa",
-			"Aspiração interna detalhada",
-			"Aplicação de pretinho de longa duração nos pneus"
-		]
-	},
-	{
 		id: "lavagem-especial",
 		name: "Lavagem Especial",
 		category: "lavagens",
@@ -16800,8 +16928,9 @@ function getStoredServices() {
 			const parsed = JSON.parse(raw);
 			if (Array.isArray(parsed) && parsed.length > 0) {
 				const initialMap = new Map(INITIAL_SERVICES.map((s) => [s.id, s.image]));
-				const parsedIds = new Set(parsed.map((s) => s.id));
-				const migrated = parsed.map((s) => {
+				const filteredStored = parsed.filter((s) => s && s.id !== "lavagem-simples");
+				const parsedIds = new Set(filteredStored.map((s) => s.id));
+				const migrated = filteredStored.map((s) => {
 					const officialImg = initialMap.get(s.id);
 					return {
 						...s,
@@ -16809,7 +16938,9 @@ function getStoredServices() {
 					};
 				});
 				const newlyAdded = INITIAL_SERVICES.filter((s) => !parsedIds.has(s.id));
-				return [...migrated, ...newlyAdded];
+				const result = [...migrated, ...newlyAdded];
+				if (filteredStored.length !== parsed.length) saveStoredServices(result);
+				return result;
 			}
 		}
 	} catch (err) {
@@ -16994,11 +17125,11 @@ function saveStoredFaqs(faqs) {
 	}
 }
 // src/components/AdminPanelModal.tsx
-var REMOTE_ADMIN_VERIFY_ENDPOINT = "https://maruipe-lavajato-one.vercel.app/api/admin/verify";
-function getAdminVerifyEndpoint() {
-	if (typeof window === "undefined") return "/api/admin/verify";
+var REMOTE_ADMIN_BASE = "https://maruipe-lavajato-one.vercel.app";
+function getAdminEndpoint(path) {
+	if (typeof window === "undefined") return path;
 	const cap = window.Capacitor;
-	return Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.protocol === "file:" || window.location.hostname === "localhost" && window.location.port === "" ? REMOTE_ADMIN_VERIFY_ENDPOINT : "/api/admin/verify";
+	return Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.protocol === "file:" || window.location.protocol === "https:" && window.location.hostname === "localhost" && window.location.port === "" ? `${REMOTE_ADMIN_BASE}${path}` : path;
 }
 var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUpdateServices, appointments, onUpdateAppointments, notifications, onUpdateNotifications, testimonials, onUpdateTestimonials, faqs, onUpdateFaqs }) => {
 	const [isAuthenticated, setIsAuthenticated] = (0, import_react.useState)(() => {
@@ -17009,8 +17140,13 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 		}
 	});
 	const [passwordInput, setPasswordInput] = (0, import_react.useState)("");
+	const [ownerPassword, setOwnerPassword] = (0, import_react.useState)("");
 	const [authError, setAuthError] = (0, import_react.useState)(null);
 	const [authLoading, setAuthLoading] = (0, import_react.useState)(false);
+	const [exportPasswordInput, setExportPasswordInput] = (0, import_react.useState)("");
+	const [exportLoading, setExportLoading] = (0, import_react.useState)(false);
+	const [exportError, setExportError] = (0, import_react.useState)(null);
+	const [exportSuccess, setExportSuccess] = (0, import_react.useState)(null);
 	const [activeTab, setActiveTab] = (0, import_react.useState)("geral");
 	const [tempConfig, setTempConfig] = (0, import_react.useState)({ ...config });
 	const [tempServices, setTempServices] = (0, import_react.useState)([...services]);
@@ -17035,6 +17171,8 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 			setTempConfig({ ...config });
 			setTempServices([...services]);
 			setAuthError(null);
+			setExportError(null);
+			setExportSuccess(null);
 			setConfirmDeleteId(null);
 			setConfirmDeleteTestimonialId(null);
 			setConfirmDeleteFaqId(null);
@@ -17052,7 +17190,7 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 		setAuthLoading(true);
 		setAuthError(null);
 		try {
-			const response = await fetch(getAdminVerifyEndpoint(), {
+			const response = await fetch(getAdminEndpoint("/api/admin/verify"), {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ password: pwd })
@@ -17062,6 +17200,7 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 				try {
 					sessionStorage.setItem("maruipe_admin_unlocked", "1");
 				} catch {}
+				setOwnerPassword(pwd);
 				setIsAuthenticated(true);
 				setPasswordInput("");
 			} else setAuthError(data?.error || "Não foi possível validar a senha do proprietário.");
@@ -17077,7 +17216,55 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 		} catch {}
 		setIsAuthenticated(false);
 		setPasswordInput("");
+		setOwnerPassword("");
+		setExportPasswordInput("");
+		setExportError(null);
+		setExportSuccess(null);
 		setAuthError(null);
+	};
+	const handleExportProjectZip = async () => {
+		const pwdToUse = (ownerPassword || exportPasswordInput).trim();
+		if (!pwdToUse) {
+			setExportError("Confirme sua senha do proprietário acima para liberar o download do pacote.");
+			return;
+		}
+		setExportLoading(true);
+		setExportError(null);
+		setExportSuccess(null);
+		try {
+			const response = await fetch(getAdminEndpoint("/api/admin/export-project"), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ password: pwdToUse })
+			});
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				setExportError(data?.error || "Não foi possível gerar o arquivo ZIP neste ambiente. Use também o menu Download / Export do AI Studio.");
+				return;
+			}
+			const blob = await response.blob();
+			if (!blob || blob.size === 0) {
+				setExportError("Arquivo recebido vazio. Tente novamente.");
+				return;
+			}
+			if (!ownerPassword) {
+				setOwnerPassword(pwdToUse);
+				setExportPasswordInput("");
+			}
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = "maruipe-lavajato-github.zip";
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			setTimeout(() => URL.revokeObjectURL(url), 4e3);
+			setExportSuccess("Pacote maruipe-lavajato-github.zip baixado! Descompacte e envie para o seu GitHub.");
+		} catch {
+			setExportError("Sem conexão com o servidor para exportar o pacote. Verifique se ADMIN_PASSWORD está configurado ou baixe pelo menu superior do AI Studio.");
+		} finally {
+			setExportLoading(false);
+		}
 	};
 	const handleSaveGeneralConfig = (e) => {
 		e.preventDefault();
@@ -17417,7 +17604,7 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "p-6 max-h-[65vh] overflow-y-auto",
 					children: [
-						activeTab === "geral" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+						activeTab === "geral" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
 							onSubmit: handleSaveGeneralConfig,
 							className: "space-y-5",
 							children: [
@@ -17569,7 +17756,52 @@ var AdminPanelModal = ({ isOpen, onClose, config, onUpdateConfig, services, onUp
 									})
 								})
 							]
-						}),
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-6 p-4 sm:p-5 rounded-2xl bg-neutral-950 border border-amber-500/30 space-y-3",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-start gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderArchive, { className: "w-4 h-4" })
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "space-y-1",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", {
+											className: "text-xs sm:text-sm font-bold text-white",
+											children: "Baixar Arquivos Atualizados para GitHub (.ZIP)"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-[11px] text-neutral-400 leading-relaxed",
+											children: "Download protegido exclusivo do proprietário (nenhum arquivo fica exposto publicamente no site). Contém o código-fonte limpo pronto para subir no GitHub, sem pastas pesadas ou chaves secretas."
+										})]
+									})]
+								}),
+								!ownerPassword && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+									className: "block text-[11px] font-semibold text-neutral-300 mb-1",
+									children: "Confirme sua senha do proprietário para liberar o download:"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+									type: "password",
+									value: exportPasswordInput,
+									onChange: (e) => setExportPasswordInput(e.target.value),
+									placeholder: "Digite sua senha do painel...",
+									className: "w-full sm:max-w-xs px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-white text-xs focus:border-amber-500 outline-none"
+								})] }),
+								exportError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "p-2.5 rounded-xl bg-red-950/50 border border-red-500/30 text-red-200 text-xs flex items-start gap-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, { className: "w-4 h-4 text-red-400 shrink-0 mt-0.5" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: exportError })]
+								}),
+								exportSuccess && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-700/50 text-emerald-200 text-xs flex items-center gap-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "w-4 h-4 text-emerald-400 shrink-0" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: exportSuccess })]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: handleExportProjectZip,
+									disabled: exportLoading,
+									className: "py-2.5 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-amber-500/50 text-amber-400 font-bold text-xs flex items-center gap-2 disabled:opacity-50 transition-colors",
+									children: exportLoading ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "w-4 h-4 animate-spin" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Gerando pacote ZIP..." })] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Baixar Pacote Atualizado (.ZIP para GitHub)" })] })
+								})
+							]
+						})] }),
 						activeTab === "agendamentos" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "space-y-4",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -18223,7 +18455,7 @@ var REMOTE_ZION_ENDPOINT = "https://maruipe-lavajato-one.vercel.app/api/zion/cha
 function getZionEndpoint() {
 	if (typeof window === "undefined") return "/api/zion/chat";
 	const cap = window.Capacitor;
-	return Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.protocol === "file:" || window.location.hostname === "localhost" && window.location.port === "" ? REMOTE_ZION_ENDPOINT : "/api/zion/chat";
+	return Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.protocol === "file:" || window.location.protocol === "https:" && window.location.hostname === "localhost" && window.location.port === "" ? REMOTE_ZION_ENDPOINT : "/api/zion/chat";
 }
 function normalizeText(value) {
 	return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -18299,10 +18531,9 @@ function tryEvaluatePercentageOrMath(userText) {
 function buildLocalZionReply(userText, services, config, backendError) {
 	const q = normalizeText(userText);
 	const byId = (id) => services.find((s) => s.id === id);
-	const lavSimples = byId("lavagem-simples");
 	const lavEspecial = byId("lavagem-especial");
-	const lavPremium = byId("lavagem-premium-detalhada");
-	const farol = byId("polimento-de-farol");
+	const lavPremium = byId("lavagem-premium") || byId("lavagem-premium-detalhada");
+	const farol = byId("polimento-farol") || byId("polimento-de-farol");
 	const polimento = byId("polimento-automotivo");
 	const micropolimento = byId("micropolimento");
 	const motor = byId("lavagem-de-motor");
@@ -18353,13 +18584,13 @@ function buildLocalZionReply(userText, services, config, backendError) {
 		const s = rodas;
 		return `Fazemos a **${s?.name || "Higienização das Rodas"}** (~${s?.durationMinutes || 45} min · **${s ? formatServicePrice(s) : "Consultar preço"}**) com remoção de poeira de freio e pretinho de alta durabilidade.`;
 	}
-	if (q.includes("simples") || q.includes("basica") || q.includes("35")) return `A **${lavSimples?.name || "Lavagem Simples"}** custa **${lavSimples ? formatServicePrice(lavSimples) : "R$ 35"}** (~${lavSimples?.durationMinutes || 45} min) e inclui: lavagem externa completa, aspiração interna e pretinho nos pneus.\n\nPor apenas R$ 15 a mais, você leva a **Lavagem Especial (R$ 50)** com cera + revitalização de plásticos!`;
+	if (q.includes("simples") || q.includes("basica") || q.includes("lavagem de 35") || q.includes("r$ 35")) return `Atualmente trabalhamos a partir da **${lavEspecial?.name || "Lavagem Especial"}** por apenas **${lavEspecial ? formatServicePrice(lavEspecial) : "R$ 50"}** (~${lavEspecial?.durationMinutes || 60} min), que já inclui lavagem técnica completa, aspiração, pretinho, cera protetora e revitalização dos plásticos internos e externos!\n\nTambém temos a **${lavPremium?.name || "Lavagem Premium Detalhada"}** (${lavPremium ? formatServicePrice(lavPremium) : "A partir de R$ 90"}). Quer agendar?`;
 	if (q.includes("especial") || q.includes("promo") || q.includes("50") || q.includes("indica") || q.includes("recomenda") || q.includes("melhor")) return `A nossa campeã em custo-benefício é a **${lavEspecial?.name || "Lavagem Especial"}** por apenas **${lavEspecial ? formatServicePrice(lavEspecial) : "R$ 50"}** (~${lavEspecial?.durationMinutes || 60} min)!\n\nEla inclui: **lavagem externa + aspiração + pretinho + cera protetora + revitalização dos plásticos por dentro e por fora**.\n\nVocê pode adicionar ao Carrinho ou clicar em **Agendar** agora mesmo!`;
 	if (q.includes("premium") || q.includes("detalhada") || q.includes("90")) return `A **${lavPremium?.name || "Lavagem Premium Detalhada"}** sai **${lavPremium ? formatServicePrice(lavPremium) : "A partir de R$ 90"}** (~${lavPremium?.durationMinutes || 90} min) e entrega detalhamento minucioso com pincelamento de emblemas/cantos, cera premium e revitalização completa dos plásticos.`;
-	if (q.includes("preco") || q.includes("valor") || q.includes("quanto") || q.includes("custa") || q.includes("servico") || q.includes("catalogo") || q.includes("tabela") || q.includes("tudo")) return `Confira nossos principais valores no **${config.name}**:\n- **Lavagem Simples:** ${lavSimples ? formatServicePrice(lavSimples) : "R$ 35"}\n- **Lavagem Especial (Promoção):** ${lavEspecial ? formatServicePrice(lavEspecial) : "R$ 50"}\n- **Lavagem Premium Detalhada:** ${lavPremium ? formatServicePrice(lavPremium) : "A partir de R$ 90"}\n- **Estética (Vitrificação Automotiva, Farol, Polimento, Micropolimento, Higienização, Motor, Rodas, Cera, Plásticos):** Consultar valores após rápida avaliação.\n\nEscolha no **Catálogo** ou clique em **Agendar**!`;
+	if (q.includes("preco") || q.includes("valor") || q.includes("quanto") || q.includes("custa") || q.includes("servico") || q.includes("catalogo") || q.includes("tabela") || q.includes("tudo")) return `Confira nossos principais valores no **${config.name}**:\n- **Lavagem Especial (Promoção):** ${lavEspecial ? formatServicePrice(lavEspecial) : "R$ 50"}\n- **Lavagem Premium Detalhada:** ${lavPremium ? formatServicePrice(lavPremium) : "A partir de R$ 90"}\n- **Estética (Vitrificação Automotiva, Farol, Polimento, Micropolimento, Higienização, Motor, Rodas, Cera, Plásticos):** Consultar valores após rápida avaliação.\n\nEscolha no **Catálogo** ou clique em **Agendar**!`;
 	if (q.includes("agendar") || q.includes("marcar") || q.includes("reserva") || q.includes("vaga")) return `É super rápido agendar aqui pelo aplicativo:\n1. Toque na aba **Agendar**\n2. Escolha o serviço, o dia e um horário livre (sem filas!)\n3. Escolha entre **Trazer o carro na loja** ou **Buscamos no local (Leva e Traz)**\n4. Selecione **Cartão, PIX ou Pagamento na Entrega** e confirme no WhatsApp.\n\nHorários: Seg a Sáb (${config.businessHoursWeekdays}) e Domingos (${config.businessHoursSunday}).`;
 	if (q.includes("whatsapp") || q.includes("telefone") || q.includes("zap") || q.includes("contato") || q.includes("falar")) return `Nosso WhatsApp oficial é **${config.whatsappPhone}**! Você também pode ver tudo por aqui no App, conferir preços no Catálogo e agendar direto pela aba **Agendar**.`;
-	if (q.includes("lava jato") || q.includes("lavajato") || q.includes("lavagem") || q.includes("lavar") || q.includes("carro") || q.includes("veiculo") || q.includes("estetica")) return `Aqui no **${config.name}** temos:\n- **Lavagem Simples (R$ 35)** e **Lavagem Especial em Promoção (R$ 50)**\n- **Lavagem Premium Detalhada (a partir de R$ 90)**\n- **Estética Completa:** Vitrificação Automotiva, Polimento, Farol, Higienização Interna, Motor, Rodas, Cera e Plásticos\n\nTambém temos **Leva e Traz** (buscamos no local ou você traz na ${config.address}). Toque em **Agendar** ou pergunte mais detalhes!`;
+	if (q.includes("lava jato") || q.includes("lavajato") || q.includes("lavagem") || q.includes("lavar") || q.includes("carro") || q.includes("veiculo") || q.includes("estetica")) return `Aqui no **${config.name}** temos:\n- **Lavagem Especial em Promoção (R$ 50)**\n- **Lavagem Premium Detalhada (a partir de R$ 90)**\n- **Estética Completa:** Vitrificação Automotiva, Polimento, Farol, Higienização Interna, Motor, Rodas, Cera e Plásticos\n\nTambém temos **Leva e Traz** (buscamos no local ou você traz na ${config.address}). Toque em **Agendar** ou pergunte mais detalhes!`;
 	if (q.includes("que dia") || q.includes("data de hoje") || q.includes("que horas") || q.includes("hora agora")) {
 		const now = /* @__PURE__ */ new Date();
 		const formattedDate = now.toLocaleDateString("pt-BR", {
@@ -18447,7 +18678,8 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 	const [orderLookupPhone, setOrderLookupPhone] = (0, import_react.useState)("");
 	const [catalogFilter, setCatalogFilter] = (0, import_react.useState)("all");
 	const [catalogSearch, setCatalogSearch] = (0, import_react.useState)("");
-	const isStandalone = typeof window !== "undefined" && (Boolean(window.Capacitor?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.hostname === "localhost" && window.location.port === "") || typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true);
+	const cap = typeof window !== "undefined" ? window.Capacitor : void 0;
+	const isStandalone = typeof window !== "undefined" && (Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.protocol === "file:" || window.location.protocol === "https:" && window.location.hostname === "localhost" && window.location.port === "") || typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true);
 	const [clientProfile, setClientProfile] = (0, import_react.useState)(() => {
 		try {
 			const saved = localStorage.getItem("maruipe_user_profile");
@@ -18462,7 +18694,8 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 	});
 	const [isEditingProfile, setIsEditingProfile] = (0, import_react.useState)(false);
 	const [selectedServiceId, setSelectedServiceId] = (0, import_react.useState)(services[0]?.id || "lavagem-especial");
-	const upcomingDates = getUpcomingBookingDates(14);
+	const [bookingFromCart, setBookingFromCart] = (0, import_react.useState)(false);
+	const upcomingDates = import_react.useMemo(() => getUpcomingBookingDates(14), []);
 	const [selectedDate, setSelectedDate] = (0, import_react.useState)(upcomingDates[0] || "");
 	const [selectedTime, setSelectedTime] = (0, import_react.useState)("");
 	const [deliveryMode, setDeliveryMode] = (0, import_react.useState)("cliente_traz");
@@ -18471,6 +18704,9 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 	const [appNotes, setAppNotes] = (0, import_react.useState)("");
 	const [bookingSuccess, setBookingSuccess] = (0, import_react.useState)(null);
 	const [bookingError, setBookingError] = (0, import_react.useState)(null);
+	(0, import_react.useEffect)(() => {
+		if (services.length > 0 && !services.some((s) => s.id === selectedServiceId)) setSelectedServiceId(services[0].id);
+	}, [services, selectedServiceId]);
 	const [copiedPix, setCopiedPix] = (0, import_react.useState)(false);
 	const [cardNotice, setCardNotice] = (0, import_react.useState)(null);
 	const initialZionMsg = {
@@ -18562,9 +18798,9 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 			setBookingError("Informe o endereço completo (rua, número e bairro) para buscarmos seu carro.");
 			return;
 		}
-		const useCart = cartItems.length > 0 && currentTab === "agendamento";
+		const useCart = bookingFromCart && cartItems.length > 0;
 		const serviceIds = useCart ? cartItems.map((c) => c.service.id) : [selectedService.id];
-		const serviceNames = useCart ? cartItems.map((c) => c.service.name) : [selectedService.name];
+		const serviceNames = useCart ? cartItems.map((c) => c.quantity > 1 ? `${c.service.name} (${c.quantity}x)` : c.service.name) : [selectedService.name];
 		const totalDuration = useCart ? cartItems.reduce((acc, c) => acc + c.service.durationMinutes * c.quantity, 0) : selectedService.durationMinutes;
 		const totalPrice = useCart ? cartTotal : selectedService.price ?? void 0;
 		const hasQuote = useCart ? hasQuoteItems : selectedService.price === null;
@@ -18594,18 +18830,26 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 		};
 		setClientProfile(updatedProfile);
 		localStorage.setItem("maruipe_user_profile", JSON.stringify(updatedProfile));
-		if (useCart) onClearCart();
+		if (useCart) {
+			onClearCart();
+			setBookingFromCart(false);
+		}
 		onAppointmentBooked?.(result.appointment);
 		setBookingSuccess(result.appointment);
 	};
 	const handleCartCheckoutInApp = () => {
 		if (cartItems.length === 0) return;
+		setBookingFromCart(true);
+		setBookingSuccess(null);
+		setBookingError(null);
+		setAgendaSubTab("novo");
 		setCurrentTab("agendamento");
 	};
-	const handleCopyPix = () => {
-		navigator.clipboard.writeText(config.pixKey);
-		setCopiedPix(true);
-		setTimeout(() => setCopiedPix(false), 3e3);
+	const handleCopyPix = async () => {
+		if (await copyToClipboard(config.pixKey)) {
+			setCopiedPix(true);
+			setTimeout(() => setCopiedPix(false), 3e3);
+		}
 	};
 	const sendZionMessage = async (textOverride) => {
 		const trimmed = (textOverride ?? zionInput).trim();
@@ -18748,6 +18992,9 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 												onClick: () => {
 													setSelectedServiceId("lavagem-especial");
+													setBookingFromCart(false);
+													setBookingSuccess(null);
+													setAgendaSubTab("novo");
 													setCurrentTab("agendamento");
 												},
 												className: "py-2 px-3 text-xs font-bold rounded-xl bg-neutral-800 text-white border border-neutral-700 flex items-center justify-center gap-1.5",
@@ -18781,7 +19028,11 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 									className: "grid grid-cols-2 gap-2.5",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											onClick: () => setCurrentTab("agendamento"),
+											onClick: () => {
+												setBookingFromCart(false);
+												setAgendaSubTab("novo");
+												setCurrentTab("agendamento");
+											},
 											className: "p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 flex flex-col items-center text-center gap-2 group transition-all",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 												className: "w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center",
@@ -18883,7 +19134,9 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 														onClick: () => {
 															setSelectedServiceId(s.id);
+															setBookingFromCart(false);
 															setBookingSuccess(null);
+															setAgendaSubTab("novo");
 															setCurrentTab("agendamento");
 														},
 														className: "px-2.5 py-2 rounded-lg bg-amber-500 text-neutral-950 font-bold text-[11px] flex items-center gap-1",
@@ -19063,6 +19316,7 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 												onClick: () => {
 													setSelectedServiceId(service.id);
+													setBookingFromCart(false);
 													setBookingSuccess(null);
 													setAgendaSubTab("novo");
 													setCurrentTab("agendamento");
@@ -19232,13 +19486,48 @@ var MobileAppView = ({ services, config, cartItems, appointments, onAppointmentB
 									onSubmit: handleAppBooking,
 									className: "space-y-3.5",
 									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+										bookingFromCart && cartItems.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "p-3 rounded-xl bg-amber-500/10 border border-amber-500/40 space-y-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "flex items-center justify-between gap-2",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "text-[11px] font-bold text-amber-400",
+													children: [
+														"Agendando itens do Carrinho (",
+														cartItems.length,
+														")"
+													]
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													onClick: () => setBookingFromCart(false),
+													className: "text-[10px] font-semibold text-neutral-300 hover:text-white underline",
+													children: "Escolher 1 serviço"
+												})]
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+												className: "space-y-1 text-[11px] text-neutral-200",
+												children: cartItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+													className: "flex justify-between gap-2",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+														className: "truncate",
+														children: [
+															item.quantity,
+															"x ",
+															item.service.name
+														]
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "text-amber-400 font-semibold shrink-0",
+														children: item.service.price ? `R$ ${(item.service.price * item.quantity).toFixed(2)}` : "Consultar"
+													})]
+												}, item.service.id))
+											})]
+										}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
 											className: "block text-[11px] font-semibold text-neutral-400 mb-1",
 											children: "Serviço Desejado"
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
 											value: selectedServiceId,
 											onChange: (e) => {
 												setSelectedServiceId(e.target.value);
+												setBookingFromCart(false);
 												setSelectedTime("");
 											},
 											className: "w-full px-3 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white",
@@ -20570,7 +20859,10 @@ function App() {
 	const [cartItems, setCartItems] = (0, import_react.useState)(() => {
 		try {
 			const saved = localStorage.getItem("maruipe_cart");
-			if (saved) return JSON.parse(saved);
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed)) return parsed.filter((item) => item?.service?.id && item.service.id !== "lavagem-simples");
+			}
 		} catch {}
 		return [];
 	});
@@ -20582,7 +20874,7 @@ function App() {
 	const [isAppMode, setIsAppMode] = (0, import_react.useState)(() => {
 		if (typeof window === "undefined") return false;
 		const cap = window.Capacitor;
-		const isCapacitor = Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.hostname === "localhost" && window.location.port === "";
+		const isCapacitor = Boolean(cap?.isNativePlatform?.()) || window.location.protocol === "capacitor:" || window.location.protocol === "file:" || window.location.protocol === "https:" && window.location.hostname === "localhost" && window.location.port === "";
 		const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 		const params = new URLSearchParams(window.location.search);
 		return isCapacitor || isStandalone || params.get("app") === "1";
